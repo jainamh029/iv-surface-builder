@@ -1,77 +1,252 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="en" data-theme="light"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>IV Surface Dashboard</title>
-<meta name="description" content="Interactive implied volatility surface dashboard: smiles, no-arbitrage checks, 3D surface and an SVI sandbox.">
+<meta name="description" content="Interactive implied volatility surface dashboard: smiles, 3D surface and skew, no-arbitrage checks, an SVI sandbox and a surface query tool.">
+<script>try{var t=localStorage.getItem("ivd-theme");if(!t&&matchMedia("(prefers-color-scheme: dark)").matches)t="dark";if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#fff;--soft:#f8fafc;--accent:#2563eb;--warn:#dc2626;--ok:#059669}
+:root{
+  --bg:#f3f5f9;--surface:#fff;--surface2:#f8fafc;--line:#e2e8f0;--ink:#0f172a;--ink2:#334155;--muted:#64748b;
+  --accent:#2f5bd9;--accent-soft:#e8eefc;--accent2:#0e8fa0;--put:#d9822b;--call:#0e8fa0;--warn:#e0475b;--ok:#0f9d6e;
+  --ok-soft:#d8f5ea;--bad-soft:#fde4e8;--shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px rgba(15,23,42,.05);
+  --hero:linear-gradient(135deg,#0f1f4d 0%,#1d3a8a 55%,#0e8fa0 130%);
+}
+[data-theme=dark]{
+  --bg:#0a1020;--surface:#111a2e;--surface2:#0e1628;--line:#223052;--ink:#e8eefb;--ink2:#c4cee3;--muted:#8a9bbd;
+  --accent:#7a9bff;--accent-soft:#1a2748;--accent2:#35d0c0;--put:#f2a65a;--call:#35d0c0;--warn:#ff7388;--ok:#38d39f;
+  --ok-soft:#0f3a30;--bad-soft:#4a1c28;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  --hero:linear-gradient(135deg,#0a1230 0%,#142a66 60%,#0b6f7c 140%);
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--soft);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif}
-a{color:var(--accent)}
-.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-.top .in{max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-.brand{font-weight:700;letter-spacing:-.01em;margin-right:auto}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
-.seg button{border:0;background:#fff;padding:7px 13px;font:600 13px inherit;font-family:inherit;color:var(--muted);cursor:pointer}
-.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
-.nav a{font-size:14px;text-decoration:none;color:var(--muted);margin-left:14px;font-weight:600}
-main{max-width:1240px;margin:0 auto;padding:20px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
-.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px}
-.kpi b{display:block;font-size:24px;letter-spacing:-.02em;line-height:1.25}.kpi span{font-size:12.5px;color:var(--muted)}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
-.card h2{font-size:16px;margin:0 0 2px;letter-spacing:-.005em}.card .sub{font-size:13px;color:var(--muted);margin:0 0 8px}
-.ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.ctl input[type=range]{flex:1;min-width:200px;accent-color:var(--accent)}
-.ctl .lbl{font-weight:600;min-width:260px}
-.row{display:grid;gap:16px;grid-template-columns:1.6fr 1fr}
-.row3{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
-.row2{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+html{color-scheme:light}[data-theme=dark]{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+a{color:var(--accent);text-decoration:none}
+button,select,input{font:inherit;color:inherit}
+.in{max-width:1320px;margin:0 auto;padding:0 22px}
+
+/* header */
+.top{background:var(--hero);color:#fff}
+.top .in{display:flex;gap:16px;align-items:center;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.logo{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.14);display:grid;place-items:center}
+.brand b{font-size:16px;letter-spacing:-.01em}.brand span{display:block;font-size:12px;opacity:.72;margin-top:-2px}
+.seg{display:inline-flex;background:rgba(255,255,255,.12);border-radius:9px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;color:rgba(255,255,255,.78);padding:5px 12px;border-radius:7px;font-weight:600;font-size:13px;cursor:pointer}
+.seg button[aria-pressed=true]{background:#fff;color:#0f1f4d}
+.top a,.top .ib{color:#fff;opacity:.85;font-size:13px;font-weight:600}
+.ib{background:rgba(255,255,255,.12);border:0;border-radius:8px;padding:6px 11px;cursor:pointer}
+.ib:hover,.top a:hover{opacity:1}
+
+/* controls */
+.ctrl{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.ctrl .in{display:flex;gap:14px;align-items:center;padding-top:10px;padding-bottom:10px;flex-wrap:wrap}
+.elabel{font-weight:700;font-size:15px;min-width:210px}.elabel small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.stepper{display:flex;gap:6px}.stepper .btn{font-size:16px;line-height:1;padding:5px 11px}.stepper .btn.pri{font-size:13px;line-height:1.5;padding:6px 14px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer}
+.btn:hover{background:var(--surface2);border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}[data-theme=dark] .btn.pri{color:#0a1020}
+.btn.sm{padding:3px 9px;font-size:12px}
+#eslider{flex:1;min-width:180px;accent-color:var(--accent)}
+.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg2 button{border:0;background:var(--surface);color:var(--muted);padding:6px 11px;font-weight:600;font-size:12.5px;cursor:pointer}
+.seg2 button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent)}
+.pin{display:inline-flex;align-items:center;gap:6px;padding:2px 4px 2px 10px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid var(--line);margin-left:4px}
+.pin i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.pin button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 5px}
+
+/* tabs */
+.tabs{background:var(--surface);border-bottom:1px solid var(--line)}
+.tabs .in{display:flex;gap:4px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:12px 16px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+
+main{max-width:1320px;margin:0 auto;padding:20px 22px 50px}
+.tab{display:none}.tab.on{display:block}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow)}
+.kpi b{display:block;font-size:22px;letter-spacing:-.02em;line-height:1.3}.kpi span{font-size:12px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
+.card h2{font-size:14.5px;margin:0;letter-spacing:-.005em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card .sub{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.g{display:grid;gap:16px;margin-bottom:16px}
+.g.c21{grid-template-columns:2fr 1fr}.g.c12{grid-template-columns:1fr 2fr}.g.c2{grid-template-columns:1fr 1fr}.g.c3{grid-template-columns:repeat(3,1fr)}.g.c31{grid-template-columns:3fr 1fr}
+.stack{display:grid;gap:16px;align-content:start}
 .plot{width:100%}
-.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;font-weight:600}
-.chip.ok{background:#d1fae5;color:#065f46}.chip.bad{background:#fee2e2;color:#991b1b}
-table{border-collapse:collapse;width:100%;font-size:13.5px}
+.chip{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.bad{background:var(--bad-soft);color:var(--warn)}.chip.neu{background:var(--accent-soft);color:var(--accent)}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.tools label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.tools select,.field input,.field select{background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:5px 8px;color:var(--ink)}
+.tools input[type=checkbox]{accent-color:var(--accent)}
+table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
 th:first-child,td:first-child{text-align:left}
-th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--soft)}
-tbody tr.sel{background:#eff6ff}tbody tr[data-i]{cursor:pointer}tbody tr[data-i]:hover{background:#f3f4f6}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface2);font-weight:600}
+tbody tr[data-i]{cursor:pointer}tbody tr[data-i]:hover{background:var(--surface2)}tbody tr.sel{background:var(--accent-soft)}
 .tw{overflow-x:auto}
-.sl{display:grid;grid-template-columns:70px 1fr 70px;gap:10px;align-items:center;margin:6px 0;font-size:13.5px}
-.sl input{accent-color:var(--accent);width:100%}.sl output{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
-.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font:600 13px inherit;font-family:inherit;cursor:pointer}
-.msg{padding:40px 20px;text-align:center;color:var(--muted)}
-.tog{font-size:13px;color:var(--muted)}.tog label{margin-left:10px;cursor:pointer}
-@media(max-width:980px){.row,.row3,.row2{grid-template-columns:1fr}.ctl .lbl{min-width:0}}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:6px 0 0;font-size:13.5px}
+.dl dt{color:var(--muted)}.dl dd{margin:0;text-align:right;font-weight:600}
+.field{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;margin:7px 0;font-size:13px;color:var(--muted)}
+.field input,.field select{width:100%}
+.sl{display:grid;grid-template-columns:34px 1fr 64px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
+.sl input{accent-color:var(--accent);width:100%}.sl output{text-align:right;color:var(--muted)}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.msg{padding:60px 20px;text-align:center;color:var(--muted)}
+code{background:var(--surface2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:12.5px}
+.foot{color:var(--muted);font-size:12.5px;text-align:center;padding:10px 0 0}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.g.c21,.g.c12,.g.c3,.g.c31{grid-template-columns:1fr}}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.g.c2{grid-template-columns:1fr}.elabel{min-width:0}.in{padding:0 14px}main{padding:14px 14px 40px}}
 </style></head><body>
 
-<div class="top"><div class="in">
-  <div class="brand">IV Surface Dashboard</div>
+<header class="top"><div class="in">
+  <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-9 9-9s6 8 9 9"/><path d="M3 21h18"/></svg></div>
+    <div><b>IV Surface Dashboard</b><span id="subtitle">Implied volatility, SVI calibration and no-arbitrage checks</span></div></div>
   <div class="seg" role="group" aria-label="Dataset">
-    <button id="ds-SPY" aria-pressed="true">SPY live snapshot</button>
+    <button id="ds-SPY" aria-pressed="true">SPY snapshot</button>
     <button id="ds-SYNTHETIC" aria-pressed="false">Synthetic (known truth)</button>
   </div>
-  <div class="nav"><a href="index.html">Report</a><a href="surface.html">Full 3D</a></div>
+  <a href="index.html">Report</a><a href="https://github.com/jainamh029/iv-surface-builder">GitHub</a>
+  <button class="ib" id="theme" aria-label="Toggle light and dark theme">Dark mode</button>
+</div></header>
+
+<div class="ctrl"><div class="in">
+  <div class="elabel" id="elabel"></div>
+  <div class="stepper"><button class="btn" id="prev" title="Previous expiry (&larr;)">&lsaquo;</button><button class="btn pri" id="play" title="Play through expiries (Space)">&#9654; Play</button><button class="btn" id="next" title="Next expiry (&rarr;)">&rsaquo;</button></div>
+  <input id="eslider" type="range" min="0" max="0" step="1" aria-label="Expiry">
+  <div class="seg2" id="xseg" role="group" aria-label="Strike axis"><button data-x="k" aria-pressed="true">ln(K/F)</button><button data-x="m">K/F</button><button data-x="K">Strike</button></div>
+  <button class="btn" id="pin" title="Pin this expiry to compare">Pin to compare</button><span id="pins"></span>
 </div></div>
 
-<main id="app"><div class="msg">Loading data&hellip;</div></main>
+<nav class="tabs"><div class="in" role="tablist">
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="surface" aria-selected="false">3D surface</button>
+  <button role="tab" data-tab="skew" aria-selected="false">3D skew</button>
+  <button role="tab" data-tab="arb" aria-selected="false">No-arbitrage</button>
+  <button role="tab" data-tab="sandbox" aria-selected="false">SVI sandbox</button>
+  <button role="tab" data-tab="data" aria-selected="false">Data &amp; audit</button>
+</div></nav>
+
+<main>
+<div id="loading" class="msg">Loading data&hellip;</div>
+
+<section class="tab" id="tab-overview">
+  <div class="kpis" id="kpis"></div>
+  <div class="g c21">
+    <div class="card"><div class="hd"><div><h2>Volatility smile</h2>
+      <p class="sub" style="margin-bottom:0">Out-of-the-money quotes vs the fitted SVI. Click any point for contract detail.</p></div>
+      <div class="tools" id="smtools">
+        <label><input type="checkbox" data-s="puts" checked> puts</label><label><input type="checkbox" data-s="calls" checked> calls</label>
+        <label><input type="checkbox" data-s="fit" checked> SVI fit</label><label><input type="checkbox" data-s="flat" checked> flat vol</label>
+        <label id="truthlbl"><input type="checkbox" data-s="truth" checked> truth</label></div></div>
+      <div id="smile" class="plot" style="height:420px"></div></div>
+    <div class="stack">
+      <div class="card"><h2>Selected contract</h2><div id="detail" class="empty">Click a point on the smile.</div></div>
+      <div class="card"><h2>Fit residuals</h2><p class="sub">Fitted minus market IV (vol points).</p><div id="resid" class="plot" style="height:190px"></div></div>
+    </div>
+  </div>
+  <div class="g c2">
+    <div class="card"><div class="hd"><div><h2>Term structure</h2><p class="sub" style="margin-bottom:0">Click a point to select that expiry.</p></div>
+      <div class="tools"><select id="termmetric" aria-label="Term structure metric"><option value="atm">ATM implied vol</option><option value="skew">ATM skew</option><option value="w">ATM total variance</option><option value="F">Forward</option></select></div></div>
+      <div id="term" class="plot" style="height:300px"></div></div>
+    <div class="card"><h2>Pinned expiries</h2><p class="sub">Pin expiries with the button above to overlay their smiles, then compare shape and level.</p>
+      <div id="pinsmile" class="plot" style="height:300px"></div></div>
+  </div>
+</section>
+
+<section class="tab" id="tab-surface">
+  <div class="g c31">
+    <div class="card"><div class="hd"><div><h2>Implied volatility surface</h2><p class="sub" style="margin-bottom:0">Drag to rotate, scroll to zoom. Click the surface to query that point. Masked where there are no quotes.</p></div>
+      <div class="tools"><select id="smetric" aria-label="Surface metric"></select>
+        <label><input type="checkbox" id="s-pts" checked> quotes</label><label><input type="checkbox" id="s-rib" checked> expiry</label><label><input type="checkbox" id="s-mask" checked> mask extrapolation</label></div></div>
+      <div class="tools" style="margin:2px 0 4px"><span>View:</span>
+        <button class="btn sm" data-cam="def">Default</button><button class="btn sm" data-cam="top">Top</button><button class="btn sm" data-cam="smile">Smile side</button><button class="btn sm" data-cam="term">Term side</button>
+        <button class="btn sm" id="dl-grid" style="margin-left:auto">Export grid CSV</button></div>
+      <div id="surf" class="plot" style="height:600px"></div></div>
+    <div class="stack">
+      <div class="card"><h2>Query the surface</h2><p class="sub">Strike and maturity in, volatility and Black-76 price out.</p>
+        <div class="field"><label for="q-days">Days</label><input id="q-days" type="number" step="1"></div>
+        <div class="field"><label for="q-K">Strike</label><input id="q-K" type="number" step="1"></div>
+        <div class="field"><label for="q-cp">Type</label><select id="q-cp"><option value="C">Call</option><option value="P">Put</option></select></div>
+        <dl class="dl" id="qout"></dl>
+        <div style="margin-top:12px"><button class="btn sm" id="q-sel">Use selected expiry</button></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="tab-skew">
+  <div class="g c31">
+    <div class="card"><div class="hd"><div><h2>Skew surface</h2>
+      <p class="sub" style="margin-bottom:0">Local skew &part;IV/&part;k over strike and maturity. Blue = steep put skew, white = the smile's vertex, red = call-side upturn. Contours are projected on the floor.</p></div>
+      <div class="tools"><select id="kmetric" aria-label="Skew metric"><option value="skew">Local skew &part;IV/&part;k</option><option value="dwk">Variance slope &part;w/&part;k</option></select>
+        <label><input type="checkbox" id="k-rib" checked> expiry</label><label><input type="checkbox" id="k-atm" checked> ATM ridge</label></div></div>
+      <div class="tools" style="margin:2px 0 4px"><span>View:</span>
+        <button class="btn sm" data-kcam="def">Default</button><button class="btn sm" data-kcam="top">Top</button><button class="btn sm" data-kcam="smile">Smile side</button><button class="btn sm" data-kcam="term">Term side</button></div>
+      <div id="skew3d" class="plot" style="height:620px"></div></div>
+    <div class="stack">
+      <div class="card"><h2>Skew across strikes</h2><p class="sub">Selected expiry (pinned expiries overlaid).</p><div id="skewslice" class="plot" style="height:240px"></div></div>
+      <div class="card"><h2>ATM skew term structure</h2><p class="sub">Steepest at the front, flattening with maturity. Click to select.</p><div id="skewterm" class="plot" style="height:240px"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="tab-arb">
+  <div class="g c2">
+    <div class="card"><h2>Risk-neutral density check <span id="gchip"></span></h2>
+      <p class="sub">Gatheral's g(k) must stay &ge; 0 for the density to be non-negative (no butterfly arbitrage). Shaded = observed strikes.</p><div id="dens" class="plot" style="height:300px"></div></div>
+    <div class="card"><h2>Calendar check</h2><p class="sub">Total variance w(k) of every expiry. Curves must not cross downward as maturity increases.</p><div id="cal" class="plot" style="height:300px"></div></div>
+  </div>
+  <div class="g c2">
+    <div class="card"><h2>g(k) heatmap</h2><p class="sub">Red would mark negative density. None appears inside the observed region.</p><div id="gheat" class="plot" style="height:320px"></div></div>
+    <div class="card"><h2>Minimum g per expiry</h2><p class="sub">Click a bar to select. All bars above zero means no butterfly arbitrage.</p><div id="ming" class="plot" style="height:320px"></div></div>
+  </div>
+</section>
+
+<section class="tab" id="tab-sandbox">
+  <div class="g c2">
+    <div class="card"><div class="hd"><div><h2>SVI sandbox</h2><p class="sub" style="margin-bottom:0">Drag the five raw-SVI parameters of the selected expiry. Push <i>b</i> up or <i>&sigma;</i> down and watch the density go negative: that is butterfly arbitrage.</p></div></div>
+      <div id="sbctl"></div>
+      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="sbreset">Reset to fitted values</button><span id="sbstat"></span></div>
+      <p class="sub" style="margin-top:14px">w(k) = a + b&middot;(&rho;&middot;(k&minus;m) + &radic;((k&minus;m)&sup2; + &sigma;&sup2;))</p></div>
+    <div class="stack"><div class="card"><h2>Smile</h2><div id="sbsmile" class="plot" style="height:280px"></div></div>
+      <div class="card"><h2>Density g(k)</h2><div id="sbdens" class="plot" style="height:200px"></div></div></div>
+  </div>
+</section>
+
+<section class="tab" id="tab-data">
+  <div class="g c2">
+    <div class="card"><h2>Data quality</h2><p class="sub">Why contracts were dropped. "not otm" is intentional: each strike keeps only its out-of-the-money leg.</p><div id="filt" class="plot" style="height:320px"></div></div>
+    <div class="card"><div class="hd"><div><h2>Per-expiry fit audit</h2><p class="sub" style="margin-bottom:0">Click a row to select.</p></div>
+      <div class="tools"><button class="btn sm" id="dl-par">Parameters CSV</button><button class="btn sm" id="dl-q">Selected quotes CSV</button></div></div>
+      <div class="tw" id="tbl"></div></div>
+  </div>
+  <div class="card" id="crosscard"><h2>Cross-check against svi-py</h2>
+    <p class="sub">Same cleaned quotes and forwards. Default = svi-py's out-of-the-box objective (total-variance error); tuned = its implied-vol objective with multi-start.</p>
+    <div class="tw" id="crosstbl"></div></div>
+</section>
+<div class="foot">Keyboard: &larr; &rarr; change expiry &middot; Space plays &middot; all charts are linked to the expiry slider.</div>
+</main>
 
 <script src="assets/plotly.min.js"></script>
 <script>
 "use strict";
-const $ = s => document.querySelector(s);
-const COL = {ink:"#111827", muted:"#6b7280", accent:"#2563eb", put:"#b45309", call:"#0369a1", warn:"#dc2626", ok:"#059669", grid:"#e5e7eb", truth:"#9ca3af"};
-const FONT = {family:'-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif', size:12, color:"#374151"};
-const CFG = {responsive:true, displaylogo:false, modeBarButtonsToRemove:["lasso2d","select2d"]};
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const f = (x, d = 2) => Number(x).toFixed(d);
-const lin = (a, b, n) => Array.from({length:n}, (_, i) => a + (b - a) * i / (n - 1));
-
-function L(o = {}) {                      // layout with sensible defaults, axes merged
-  const ax = (x = {}) => ({gridcolor:COL.grid, zeroline:false, linecolor:COL.grid, ...x});
-  return {margin:{l:54, r:14, t:14, b:44}, font:FONT, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-          hovermode:"closest", legend:{orientation:"h", y:1.14, x:0}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
+const lin = (a, b, n) => Array.from({length: n}, (_, i) => a + (b - a) * i / (n - 1));
+const FONT = '-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif';
+const CFG = {responsive:true, displaylogo:false, modeBarButtonsToRemove:["lasso2d","select2d"]};
+const SEQ = [[0,"#1b2a6b"],[.25,"#2f5bd9"],[.5,"#1aa3b5"],[.75,"#62d2a2"],[1,"#f4e7a6"]];
+const DIV = [[0,"#2147b8"],[.25,"#6f94f0"],[.5,"#eef2f8"],[.75,"#f0a0ab"],[1,"#d6334c"]];
+const GHEAT = [[0,"#e0475b"],[.2,"#eef2f8"],[1,"#0e8fa0"]];
+const PIN_HUES = [28, 280, 150, 330, 50];
+let C = {};
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
+  C = {ink:g("--ink"), ink2:g("--ink2"), muted:g("--muted"), line:g("--line"), surface:g("--surface"), accent:g("--accent"), put:g("--put"), call:g("--call"), warn:g("--warn"), ok:g("--ok")};
 }
 
-/* ---------- SVI maths (mirrors ivsurface/svi.py and surface.py) ---------- */
+/* ---------------- maths (mirrors ivsurface/svi.py + surface.py) ---------------- */
 const S = {
   w:   (p, k) => { const x = k - p.m; return p.a + p.b * (p.rho * x + Math.sqrt(x * x + p.sigma * p.sigma)); },
   dw:  (p, k) => { const x = k - p.m; return p.b * (p.rho + x / Math.sqrt(x * x + p.sigma * p.sigma)); },
@@ -80,243 +255,324 @@ const S = {
                    return Math.pow(1 - k * wp / (2 * w), 2) - wp * wp / 4 * (1 / w + 0.25) + wpp / 2; },
 };
 const ivOf = (p, k, T) => Math.sqrt(Math.max(S.w(p, k), 1e-12) / T);
+const erf = x => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0.3275911 * x);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x)); };
+const Ncdf = x => 0.5 * (1 + erf(x / Math.SQRT2)), npdf = x => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 
-let D = null, idx = 0, xmode = "k", cache = {}, sandbox = null;
-const slices = () => D.slices;
+let D = null, idx = 0, xmode = "k", active = "overview", pins = [], timer = null, detail = null, sandbox = null;
+const cache = {}, show = {puts:true, calls:true, fit:true, flat:true, truth:true};
+const query = {days:60, K:null, cp:"C"};
+const sl = () => D.slices;
 
-function wAt(k, T) {                      // linear in T at fixed k; scaled before first slice
-  const s = slices();
-  if (T <= s[0].T) return S.w(s[0], k) * T / s[0].T;
+function wDer(k, T) {                      // [w, dw/dk, d2w/dk2], linear in T at fixed k
+  const s = sl();
+  if (T <= s[0].T) { const q = T / s[0].T; return [S.w(s[0], k) * q, S.dw(s[0], k) * q, S.d2w(s[0], k) * q]; }
   for (let j = 1; j < s.length; j++) if (T <= s[j].T + 1e-12) {
-    const lam = (T - s[j - 1].T) / (s[j].T - s[j - 1].T);
-    return (1 - lam) * S.w(s[j - 1], k) + lam * S.w(s[j], k);
+    const l = (T - s[j - 1].T) / (s[j].T - s[j - 1].T), a = s[j - 1], b = s[j];
+    return [(1 - l) * S.w(a, k) + l * S.w(b, k), (1 - l) * S.dw(a, k) + l * S.dw(b, k), (1 - l) * S.d2w(a, k) + l * S.d2w(b, k)];
   }
-  return NaN;
+  return [NaN, NaN, NaN];
 }
-function rangeAt(T) {                     // observed strike range, interpolated in T
-  const s = slices(), Ts = s.map(x => x.T);
-  const interp = key => { if (T <= Ts[0]) return s[0][key]; if (T >= Ts[Ts.length - 1]) return s[s.length - 1][key];
-    let j = 1; while (Ts[j] < T) j++; const lam = (T - Ts[j - 1]) / (Ts[j] - Ts[j - 1]); return (1 - lam) * s[j - 1][key] + lam * s[j][key]; };
-  return [interp("k_min"), interp("k_max")];
+function rangeAt(T) {
+  const s = sl(), Ts = s.map(x => x.T);
+  const ip = key => { if (T <= Ts[0]) return s[0][key]; if (T >= Ts[Ts.length - 1]) return s[s.length - 1][key];
+    let j = 1; while (Ts[j] < T) j++; const l = (T - Ts[j - 1]) / (Ts[j] - Ts[j - 1]); return (1 - l) * s[j - 1][key] + l * s[j][key]; };
+  return [ip("k_min"), ip("k_max")];
 }
-const pct = (arr, q) => { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(q * (a.length - 1))]; };
+const forward = T => { const s = sl(), Ts = s.map(x => x.T), lf = s.map(x => Math.log(x.F));
+  if (T <= Ts[0]) return Math.exp(lf[0]); if (T >= Ts[Ts.length - 1]) return Math.exp(lf[lf.length - 1]);
+  let j = 1; while (Ts[j] < T) j++; const l = (T - Ts[j - 1]) / (Ts[j] - Ts[j - 1]); return Math.exp((1 - l) * lf[j - 1] + l * lf[j]); };
+const METRICS = {
+  iv:   {name:"Implied vol (%)",         f:(k, T) => Math.sqrt(Math.max(wDer(k, T)[0], 0) / T) * 100},
+  w:    {name:"Total variance w",        f:(k, T) => wDer(k, T)[0]},
+  skew: {name:"Local skew dIV/dk",       f:(k, T) => { const [w, wp] = wDer(k, T); return wp / (2 * Math.sqrt(Math.max(w, 1e-12) * T)); }},
+  dwk:  {name:"Variance slope dw/dk",    f:(k, T) => wDer(k, T)[1]},
+  g:    {name:"Density factor g(k)",     f:(k, T) => { const [w0, wp, wpp] = wDer(k, T), w = Math.max(w0, 1e-12); return Math.pow(1 - k * wp / (2 * w), 2) - wp * wp / 4 * (1 / w + 0.25) + wpp / 2; }},
+};
+const isDiv = m => m === "skew" || m === "dwk";
 const atmVol = s => ivOf(s, 0, s.T) * 100;
 const atmSkew = s => S.dw(s, 0) / (2 * Math.sqrt(Math.max(S.w(s, 0), 1e-12) * s.T));
+const pct = (a, q) => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(q * (b.length - 1))]; };
+const nearest = days => sl().reduce((b, s, i) => Math.abs(s.days - days) < Math.abs(sl()[b].days - days) ? i : b, 0);
+const dateStr = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"});
 
-/* ---------- page skeleton ---------- */
-function build() {
-  $("#app").innerHTML = `
-  <div class="kpis" id="kpis"></div>
-  <div class="card"><div class="ctl">
-    <div class="lbl" id="elabel"></div>
-    <input id="eslider" type="range" min="0" max="0" step="1" aria-label="Expiry">
-  </div></div>
-  <div class="row">
-    <div class="card"><h2>Volatility smile</h2>
-      <p class="sub">Out-of-the-money market quotes against the fitted SVI. The red dashed line is the flat vol Black-Scholes assumes.
-      <span class="tog">x-axis: <label><input type="radio" name="xm" value="k" checked> ln(K/F)</label><label><input type="radio" name="xm" value="K"> strike</label></span></p>
-      <div id="smile" class="plot" style="height:400px"></div></div>
-    <div>
-      <div class="card"><h2>Fit residuals</h2><p class="sub">Fitted minus market IV, in vol points.</p><div id="resid" class="plot" style="height:150px"></div></div>
-      <div class="card"><h2>Risk-neutral density check <span id="gchip"></span></h2>
-        <p class="sub">Gatheral's g(k) must stay &ge; 0. Shaded band = observed strikes.</p><div id="dens" class="plot" style="height:150px"></div></div>
-    </div>
-  </div>
-  <div class="card"><h2>Implied volatility surface</h2>
-    <p class="sub">Drag to rotate. Black line = selected expiry; dots = market quotes. Strikes beyond the observed range are masked, not extrapolated.</p>
-    <div id="surf" class="plot" style="height:560px"></div></div>
-  <div class="row3">
-    <div class="card"><h2>ATM term structure</h2><p class="sub">At-the-money implied vol vs maturity.</p><div id="term" class="plot" style="height:260px"></div></div>
-    <div class="card"><h2>ATM skew</h2><p class="sub">dIV/dk at the money; negative means puts are richer.</p><div id="skew" class="plot" style="height:260px"></div></div>
-    <div class="card"><h2>Calendar check</h2><p class="sub">Total variance w(k) of each expiry. Curves must not cross downward.</p><div id="cal" class="plot" style="height:260px"></div></div>
-  </div>
-  <div class="card"><h2>SVI sandbox</h2>
-    <p class="sub">Drag the five raw-SVI parameters for the selected expiry. Push <i>b</i> up or <i>&sigma;</i> down and watch the density go negative: that is butterfly arbitrage.</p>
-    <div class="row2"><div>
-      <div id="sbctl"></div>
-      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button class="btn" id="sbreset">Reset to fitted values</button>
-        <span id="sbstat"></span></div>
-    </div>
-    <div><div id="sbsmile" class="plot" style="height:230px"></div><div id="sbdens" class="plot" style="height:150px"></div></div></div>
-  </div>
-  <div class="row2">
-    <div class="card"><h2>Data quality</h2><p class="sub">Why contracts were dropped. "not otm" is intentional: each strike keeps only its out-of-the-money leg.</p>
-      <div id="filt" class="plot" style="height:300px"></div></div>
-    <div class="card"><h2>Per-expiry fit audit</h2><p class="sub">Click a row to select that expiry.</p><div class="tw" id="tbl"></div></div>
-  </div>
-  <div class="card" id="crosscard" style="display:none"><h2>Cross-check against svi-py</h2>
-    <p class="sub">Same cleaned quotes and forwards. Default = svi-py's out-of-the-box objective (total-variance error); tuned = its implied-vol objective with multi-start.</p>
-    <div class="tw" id="crosstbl"></div></div>`;
-  $("#eslider").addEventListener("input", e => { idx = +e.target.value; renderSelected(); });
-  document.querySelectorAll('input[name=xm]').forEach(r => r.addEventListener("change", e => { xmode = e.target.value; renderSmile(); }));
-  $("#sbreset").addEventListener("click", () => { initSandbox(); renderSandbox(); });
+function gridFor(metric, mask, ragged = false, nk = 96) {
+  // ragged: each maturity gets its own exact strike range (clean surface edges, no nulls).
+  const key = `${D.label}|${metric}|${mask}|${ragged}|${nk}`; if (cache[key]) return cache[key];
+  const s = sl(), ks = s.flatMap(x => [x.k_min, x.k_max]), fn = METRICS[metric].f, T = lin(s[0].T, s[s.length - 1].T, nk > 96 ? 120 : 60);
+  const kg = lin(pct(ks, .08), pct(ks, .92), nk);
+  if (ragged) {
+    const kRows = T.map(t => { if (!mask) return kg; const [lo, hi] = rangeAt(t); return lin(lo, hi, 96); });
+    return cache[key] = {kRows, T, z:T.map((t, i) => kRows[i].map(v => fn(v, t)))};
+  }
+  const z = T.map(t => { const [lo, hi] = rangeAt(t); return kg.map(v => (mask && (v < lo || v > hi)) ? null : fn(v, t)); });
+  return cache[key] = {k:kg, T, z};
 }
 
-/* ---------- renderers ---------- */
+/* ---------------- plotly helpers ---------------- */
+function L(o = {}) {
+  const ax = (x = {}) => ({gridcolor:C.line, zerolinecolor:C.line, linecolor:C.line, tickcolor:C.line, ...x, title:x.title ? {text:x.title, standoff:8} : undefined});
+  return {margin:{l:56, r:16, t:10, b:46}, font:{family:FONT, size:12, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+          hovermode:"closest", hoverlabel:{font:{family:FONT, size:12}}, legend:{orientation:"h", y:1.13, x:0, font:{size:11.5}}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
+}
+function sceneL(zt, o = {}) {
+  const ax = t => ({title:{text:t}, gridcolor:C.line, zerolinecolor:C.line, showbackground:false, color:C.muted, linecolor:C.line, tickfont:{size:10.5}});
+  return {margin:{l:0, r:0, t:0, b:0}, font:{family:FONT, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", showlegend:false, uirevision:D.label + (o.rev || ""),
+          scene:{xaxis:ax("ln(K/F)"), yaxis:ax("days to expiry"), zaxis:ax(zt), aspectratio:{x:1.25, y:1.25, z:.75}, camera:CAMS.def, dragmode:"turntable"}};
+}
+const CAMS = {def:{eye:{x:1.45, y:-1.5, z:.85}}, top:{eye:{x:0, y:-0.01, z:2.6}}, smile:{eye:{x:0, y:-2.6, z:.45}}, term:{eye:{x:2.6, y:0, z:.45}}};
+const bound = new Set();
+function on(id, evt, fn) { const k = id + evt; if (bound.has(k)) return; const el = document.getElementById(id); if (el && el.on) { el.on(evt, fn); bound.add(k); } }
+const draw = (id, tr, lay) => { Plotly.react(id, tr, lay, CFG); return document.getElementById(id); };
+const xf = s => xmode === "k" ? k => k : xmode === "m" ? k => Math.exp(k) : k => s.F * Math.exp(k);
+const XT = {k:"ln(K/F)", m:"moneyness K/F", K:"strike"};
+const pinColor = (j, on) => `hsl(${PIN_HUES[j % PIN_HUES.length]},65%,${C.surface === "#111a2e" ? 62 : 46}%)`;
+const sel = () => sl()[idx];
+
+/* ---------------- overview ---------------- */
 function renderKpis() {
-  const s = slices(), meanR = s.reduce((a, x) => a + x.rmse, 0) / s.length;
-  const bad = s.filter(x => !x.butterfly_ok || !x.calendar_ok).length;
+  const s = sl(), meanR = s.reduce((a, x) => a + x.rmse, 0) / s.length, bad = s.filter(x => !x.butterfly_ok || !x.calendar_ok).length;
   let last = ["ATM IV range", `${f(Math.min(...s.map(atmVol)), 1)}–${f(Math.max(...s.map(atmVol)), 1)}%`];
-  if (s[0].truth) {
-    let mx = 0; s.forEach(x => x.truth.k.forEach((k, i) => { mx = Math.max(mx, Math.abs(ivOf(x, k, x.T) - x.truth.iv[i]) * 100); }));
-    last = ["max error vs true surface", `${f(mx, 2)} pts`];
-  }
+  if (s[0].truth) { let mx = 0; s.forEach(x => x.truth.k.forEach((k, i) => { mx = Math.max(mx, Math.abs(ivOf(x, k, x.T) - x.truth.iv[i]) * 100); })); last = ["max error vs true surface", `${f(mx, 2)} pts`]; }
   $("#kpis").innerHTML = [
     [`${D.n_kept.toLocaleString()} / ${D.n_raw.toLocaleString()}`, "contracts kept after cleaning"],
-    [s.length, `expiries fitted (${f(s[0].days, 0)}–${f(s[s.length - 1].days, 0)} days)`],
-    [`${f(meanR, 2)} pts`, "mean fit error on market quotes"],
-    [bad === 0 ? "0" : bad, "slices with butterfly/calendar arbitrage"],
+    [s.length, `expiries (${f(s[0].days, 0)}–${f(s[s.length - 1].days, 0)} days)`],
+    [`${f(meanR, 2)} pts`, "mean fit error on quotes"],
+    [bad === 0 ? "0" : bad, "slices with arbitrage"],
     [last[1], last[0]],
-    [D.spot.toLocaleString(undefined, {maximumFractionDigits: 2}), `spot, as of ${D.asof.slice(0, 10)}`]
+    [D.spot.toLocaleString(undefined, {maximumFractionDigits:2}), `spot, as of ${D.asof.slice(0, 10)}`],
   ].map(([b, t]) => `<div class="kpi"><b>${b}</b><span>${t}</span></div>`).join("");
 }
-
 function renderSmile() {
-  const s = slices()[idx], q = s.q, X = k => xmode === "k" ? k : s.F * Math.exp(k);
-  const pts = type => { const ix = q.type.map((t, i) => t === type ? i : -1).filter(i => i >= 0);
-    return {x: ix.map(i => X(q.k[i])), y: ix.map(i => q.iv[i] * 100),
-            text: ix.map(i => `${type === "P" ? "Put" : "Call"} K=${q.K[i]}<br>bid ${q.bid[i]} / ask ${q.ask[i]}`)}; };
-  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 240), atm = atmVol(s);
-  const tr = [
-    {...pts("P"), name:"market puts", mode:"markers", marker:{size:5, color:COL.put}, hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"},
-    {...pts("C"), name:"market calls", mode:"markers", marker:{size:5, color:COL.call}, hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"},
-  ];
-  if (s.truth) tr.push({x:s.truth.k.map(X), y:s.truth.iv.map(v => v * 100), name:"true surface", mode:"lines", line:{color:COL.truth, width:6}, opacity:.55, hoverinfo:"skip"});
-  tr.push({x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:"SVI fit", mode:"lines", line:{color:COL.accent, width:2.2}, hovertemplate:"fit %{y:.2f}%<extra></extra>"});
-  tr.push({x:[X(kk[0]), X(kk[kk.length - 1])], y:[atm, atm], name:"flat vol (Black-Scholes)", mode:"lines", line:{color:COL.warn, dash:"dash", width:1.4}, hoverinfo:"skip"});
-  Plotly.react("smile", tr, L({xaxis:{title:xmode === "k" ? "ln(K/F)" : "strike"}, yaxis:{title:"implied vol (%)"}}), CFG);
+  const s = sel(), q = s.q, X = xf(s);
+  const pts = (type, name, col, flag) => { const ix = q.type.map((t, i) => t === type ? i : -1).filter(i => i >= 0);
+    return {x:ix.map(i => X(q.k[i])), y:ix.map(i => q.iv[i] * 100), customdata:ix, name, meta:"mkt", mode:"markers", visible:flag, marker:{size:6, color:col, opacity:.85, line:{width:0}},
+      text:ix.map(i => `${type === "P" ? "Put" : "Call"} K=${q.K[i]}<br>bid ${q.bid[i]} / ask ${q.ask[i]}`), hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"}; };
+  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 240), atm = atmVol(s), tr = [pts("P", "market puts", C.put, show.puts), pts("C", "market calls", C.call, show.calls)];
+  if (s.truth) tr.push({x:s.truth.k.map(X), y:s.truth.iv.map(v => v * 100), name:"true surface", mode:"lines", visible:show.truth, line:{color:C.muted, width:7}, opacity:.4, hoverinfo:"skip"});
+  tr.push({x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:"SVI fit", mode:"lines", visible:show.fit, line:{color:C.accent, width:2.6}, hovertemplate:"fit %{y:.2f}%<extra></extra>"});
+  tr.push({x:[X(kk[0]), X(kk[kk.length - 1])], y:[atm, atm], name:"flat vol (Black-Scholes)", mode:"lines", visible:show.flat, line:{color:C.warn, dash:"dash", width:1.5}, hoverinfo:"skip"});
+  if (detail != null) tr.push({x:[X(q.k[detail])], y:[q.iv[detail] * 100], mode:"markers", name:"selected", marker:{size:14, color:"rgba(0,0,0,0)", line:{color:C.ink, width:2}}, hoverinfo:"skip", showlegend:false});
+  draw("smile", tr, L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}}));
+  on("smile", "plotly_click", ev => { const p = ev.points[0]; if (p.data.meta === "mkt") { detail = p.customdata; renderDetail(); renderSmile(); } });
 }
-
+function renderDetail() {
+  const s = sel(), q = s.q, i = detail;
+  if (i == null || i >= q.k.length) { $("#detail").className = "empty"; $("#detail").innerHTML = "Click a point on the smile."; return; }
+  const fit = ivOf(s, q.k[i], s.T) * 100, mkt = q.iv[i] * 100, res = fit - mkt;
+  $("#detail").className = ""; $("#detail").innerHTML = `<dl class="dl">
+    <dt>Contract</dt><dd>${q.type[i] === "P" ? "Put" : "Call"} ${q.K[i]} &middot; ${s.expiry}</dd>
+    <dt>Bid / ask</dt><dd>${q.bid[i]} / ${q.ask[i]}</dd><dt>ln(K/F) &middot; K/F</dt><dd>${f(q.k[i], 3)} &middot; ${f(Math.exp(q.k[i]), 3)}</dd>
+    <dt>Market IV</dt><dd>${f(mkt, 2)}%</dd><dt>SVI fit IV</dt><dd>${f(fit, 2)}%</dd>
+    <dt>Residual</dt><dd><span class="chip ${Math.abs(res) < 0.5 ? "ok" : "bad"}">${res >= 0 ? "+" : ""}${f(res, 2)} pts</span></dd></dl>`;
+}
 function renderResid() {
-  const s = slices()[idx], q = s.q;
-  const y = q.k.map((k, i) => (ivOf(s, k, s.T) - q.iv[i]) * 100);
-  Plotly.react("resid", [{x:q.k, y, mode:"markers", marker:{size:4, color:q.type.map(t => t === "P" ? COL.put : COL.call)}, hovertemplate:"k=%{x:.3f}<br>%{y:+.3f} pts<extra></extra>"}],
-    L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"vol pts"}, showlegend:false,
-       shapes:[{type:"line", x0:s.k_min, x1:s.k_max, y0:0, y1:0, line:{color:COL.muted, width:1}}]}), CFG);
+  const s = sel(), q = s.q, X = xf(s), y = q.k.map((k, i) => (ivOf(s, k, s.T) - q.iv[i]) * 100);
+  draw("resid", [{x:q.k.map(X), y, mode:"markers", marker:{size:4.5, color:q.type.map(t => t === "P" ? C.put : C.call), opacity:.85}, hovertemplate:"%{x:.3f}<br>%{y:+.3f} pts<extra></extra>"}],
+    L({margin:{l:56, r:16, t:4, b:40}, xaxis:{title:XT[xmode]}, yaxis:{title:"vol pts"}, showlegend:false,
+       shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1}}]}));
 }
-
-function densityTrace(p, s, color) {
-  const kk = lin(s.k_min - 0.1, s.k_max + 0.1, 220), g = kk.map(k => S.g(p, k));
-  return {kk, g, min: Math.min(...g), tr: {x:kk, y:g, mode:"lines", line:{color, width:2}, fill:"tozeroy", fillcolor:"rgba(37,99,235,.07)", hovertemplate:"k=%{x:.3f}<br>g=%{y:.3f}<extra></extra>"}};
+function termData(m) {
+  const s = sl();
+  return {atm:{y:s.map(atmVol), t:"ATM IV (%)", c:C.accent}, skew:{y:s.map(atmSkew), t:"dIV / d ln(K/F)", c:C.warn},
+          w:{y:s.map(x => S.w(x, 0)), t:"total variance", c:C.call}, F:{y:s.map(x => x.F), t:"forward", c:C.put}}[m];
 }
-function densLayout(s) {
-  return L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:false,
-    shapes:[{type:"rect", xref:"x", yref:"paper", x0:s.k_min, x1:s.k_max, y0:0, y1:1, fillcolor:"rgba(37,99,235,.06)", line:{width:0}, layer:"below"},
-            {type:"line", x0:s.k_min - 0.1, x1:s.k_max + 0.1, y0:0, y1:0, line:{color:COL.warn, width:1, dash:"dot"}}]});
-}
-function renderDensity() {
-  const s = slices()[idx], d = densityTrace(s, s, COL.accent);
-  Plotly.react("dens", [d.tr], densLayout(s), CFG);
-  $("#gchip").innerHTML = d.min >= -1e-6 ? '<span class="chip ok">no arbitrage</span>' : '<span class="chip bad">negative density</span>';
-}
-
-function renderSurface() {
-  const s = slices(), ks = s.flatMap(x => [x.k_min, x.k_max]);
-  const k = lin(pct(ks, .1), pct(ks, .9), 90), T = lin(s[0].T, s[s.length - 1].T, 56);
-  const z = T.map(t => { const [lo, hi] = rangeAt(t); return k.map(kv => (kv < lo || kv > hi) ? null : Math.sqrt(Math.max(wAt(kv, t), 0) / t) * 100); });
-  const sel = s[idx], kk = lin(sel.k_min, sel.k_max, 80);
-  const pts = {x:[], y:[], z:[]}; s.forEach(x => x.q.k.forEach((kv, i) => { pts.x.push(kv); pts.y.push(x.days); pts.z.push(x.q.iv[i] * 100); }));
-  Plotly.react("surf", [
-    {type:"surface", x:k, y:T.map(t => t * 365), z, colorscale:"Viridis", opacity:.93, colorbar:{title:"IV %", len:.6, thickness:14},
-     hovertemplate:"ln(K/F) %{x:.3f}<br>%{y:.0f} days<br>IV %{z:.1f}%<extra></extra>"},
-    {type:"scatter3d", mode:"markers", x:pts.x, y:pts.y, z:pts.z, marker:{size:1.8, color:"#111827"}, name:"quotes", hoverinfo:"skip"},
-    {type:"scatter3d", mode:"lines", x:kk, y:kk.map(() => sel.days), z:kk.map(v => ivOf(sel, v, sel.T) * 100), line:{color:"#dc2626", width:7}, name:"selected", hoverinfo:"skip"},
-  ], {margin:{l:0, r:0, t:0, b:0}, font:FONT, paper_bgcolor:"rgba(0,0,0,0)", showlegend:false,
-      scene:{xaxis:{title:"ln(K/F)"}, yaxis:{title:"days to expiry"}, zaxis:{title:"IV (%)"}, camera:{eye:{x:1.65, y:-1.65, z:.85}}}}, CFG);
-}
-
+function markerTrace(xs, ys) { return {x:xs, y:ys, mode:"markers", marker:{size:13, color:"rgba(0,0,0,0)", line:{color:C.ink, width:2}}, hoverinfo:"skip"}; }
 function renderTerm() {
-  const s = slices(), d = s.map(x => x.days), cur = s[idx];
-  const mk = (y, c, ttl) => [{x:d, y, mode:"lines+markers", line:{color:c, width:2}, marker:{size:5}, hovertemplate:"%{x:.0f}d: %{y:.3f}<extra></extra>"},
-    {x:[cur.days], y:[y[idx]], mode:"markers", marker:{size:11, color:"rgba(0,0,0,0)", line:{color:COL.ink, width:2}}, hoverinfo:"skip"}];
-  Plotly.react("term", mk(s.map(atmVol), COL.accent), L({xaxis:{title:"days to expiry"}, yaxis:{title:"ATM IV (%)"}, showlegend:false}), CFG);
-  Plotly.react("skew", mk(s.map(atmSkew), COL.warn), L({xaxis:{title:"days to expiry"}, yaxis:{title:"dIV / d ln(K/F)"}, showlegend:false}), CFG);
+  const m = $("#termmetric").value, d = termData(m), days = sl().map(x => x.days);
+  draw("term", [{x:days, y:d.y, mode:"lines+markers", line:{color:d.c, width:2.4}, marker:{size:7}, text:sl().map(x => x.expiry), hovertemplate:"%{text}<br>%{x:.0f}d: %{y:.4f}<extra></extra>"}, markerTrace([sel().days], [d.y[idx]])],
+    L({xaxis:{title:"days to expiry"}, yaxis:{title:d.t}, showlegend:false}));
+  on("term", "plotly_click", ev => { if (ev.points[0].curveNumber === 0) setIdx(ev.points[0].pointIndex); });
+}
+function renderPinSmile() {
+  if (!pins.length) { draw("pinsmile", [], L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}, annotations:[{text:"No pinned expiries yet", showarrow:false, font:{color:C.muted, size:13}, xref:"paper", yref:"paper", x:.5, y:.5}]})); return; }
+  const tr = pins.map((i, j) => { const s = sl()[i], X = xf(s), kk = lin(s.k_min, s.k_max, 160);
+    return {x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:`${f(s.days, 0)}d`, mode:"lines", line:{color:pinColor(j), width:2.4}, hovertemplate:`${f(s.days, 0)}d: %{y:.2f}%<extra></extra>`}; });
+  draw("pinsmile", tr, L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}}));
+}
+function renderOverview() { renderKpis(); renderSmile(); renderDetail(); renderResid(); renderTerm(); renderPinSmile(); $("#truthlbl").style.display = sl()[0].truth ? "" : "none"; }
+
+/* ---------------- 3D surface ---------------- */
+function surfaceTraces(metric, o) {
+  const {kRows, T, z} = gridFor(metric, o.mask, true), div = isDiv(metric), fn = METRICS[metric].f;
+  const abs = z.flat().map(Math.abs).sort((a, b) => a - b), m = div ? abs[Math.floor(.97 * (abs.length - 1))] : 0;
+  const tr = [{type:"surface", x:kRows, y:T.map((t, i) => kRows[i].map(() => t * 365)), z, colorscale:div ? DIV : SEQ, ...(div ? {cmin:-m, cmax:m} : {}), opacity:.96, lighting:{ambient:.78, diffuse:.6, specular:.1, roughness:.7},
+    colorbar:{title:{text:METRICS[metric].name.replace(/ \(%\)/, " %"), side:"right"}, len:.62, thickness:12, tickfont:{size:10.5, color:C.muted}, outlinewidth:0},
+    contours:o.contours ? {z:{show:true, usecolormap:true, project:{z:true}, width:2}} : {},
+    hovertemplate:`ln(K/F) %{x:.3f}<br>%{y:.0f} days<br>${METRICS[metric].name} %{z:.3f}<extra></extra>`}];
+  const s = sl();
+  if (o.pts) { const p = {x:[], y:[], z:[]}; s.forEach(x => x.q.k.forEach((kv, i) => { p.x.push(kv); p.y.push(x.days); p.z.push(x.q.iv[i] * 100); }));
+    tr.push({type:"scatter3d", mode:"markers", ...p, marker:{size:1.7, color:C.ink, opacity:.7}, hoverinfo:"skip"}); } else tr.push({type:"scatter3d", x:[], y:[], z:[]});
+  const cur = sel(), kk = lin(cur.k_min, cur.k_max, 90);
+  tr.push(o.rib ? {type:"scatter3d", mode:"lines", x:kk, y:kk.map(() => cur.days), z:kk.map(v => fn(v, cur.T)), line:{color:C.warn, width:8}, hoverinfo:"skip"} : {type:"scatter3d", x:[], y:[], z:[]});
+  if (o.atm) { const dd = lin(s[0].days, s[s.length - 1].days, 80); tr.push({type:"scatter3d", mode:"lines", x:dd.map(() => 0), y:dd, z:dd.map(d => fn(0, d / 365)), line:{color:C.ink, width:5}, hoverinfo:"skip"}); }
+  else tr.push({type:"scatter3d", x:[], y:[], z:[]});
+  return tr;
+}
+function renderSurfaceTab() {
+  const metric = $("#smetric").value, o = {mask:$("#s-mask").checked, pts:$("#s-pts").checked && metric === "iv", rib:$("#s-rib").checked, contours:false, atm:false};
+  const tr = surfaceTraces(metric, o), q = queryResult();
+  tr.push(q ? {type:"scatter3d", mode:"markers", x:[q.k], y:[q.days], z:[METRICS[metric].f(q.k, q.T)], marker:{size:7, symbol:"diamond", color:C.warn, line:{color:"#fff", width:1.5}}, hoverinfo:"skip"} : {type:"scatter3d", x:[], y:[], z:[]});
+  const gd = draw("surf", tr, sceneL(METRICS[metric].name, {rev:"surf"}));
+  on("surf", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (!p) return;
+    query.days = Math.round(p.y); query.K = Math.round(forward(p.y / 365) * Math.exp(p.x)); setIdx(nearest(p.y), true); });
+  renderQuery();
+}
+function queryResult() {
+  const T = query.days / 365, s = sl(); if (!(T > 0) || !(query.K > 0)) return null;
+  const Tc = Math.min(Math.max(T, s[0].T), s[s.length - 1].T), F = forward(Tc), k = Math.log(query.K / F), w = wDer(k, Tc)[0];
+  if (!(w > 0)) return null;
+  const iv = Math.sqrt(w / Tc), sd = iv * Math.sqrt(Tc), d1 = (Math.log(F / query.K) + 0.5 * sd * sd) / sd, d2 = d1 - sd, df = Math.exp(-D.rate * Tc), call = query.cp === "C";
+  const price = call ? df * (F * Ncdf(d1) - query.K * Ncdf(d2)) : df * (query.K * Ncdf(-d2) - F * Ncdf(-d1));
+  const [lo, hi] = rangeAt(Tc);
+  return {k, T:Tc, days:Tc * 365, F, iv, price, delta:call ? df * Ncdf(d1) : df * (Ncdf(d1) - 1), vega:df * F * npdf(d1) * Math.sqrt(Tc) / 100, inside:k >= lo && k <= hi, clamped:Math.abs(Tc - T) > 1e-9};
+}
+function renderQuery() {
+  const s = sl(); if (query.K == null) query.K = Math.round(D.spot);
+  $("#q-days").min = Math.ceil(s[0].days); $("#q-days").max = Math.floor(s[s.length - 1].days);
+  $("#q-days").value = query.days; $("#q-K").value = query.K; $("#q-cp").value = query.cp;
+  const q = queryResult(); if (!q) { $("#qout").innerHTML = '<dt>Result</dt><dd>enter a valid strike</dd>'; return; }
+  $("#qout").innerHTML = `<dt>Forward</dt><dd>${f(q.F, 2)}</dd><dt>ln(K/F)</dt><dd>${f(q.k, 4)}</dd><dt>Implied vol</dt><dd>${f(q.iv * 100, 2)}%</dd>
+    <dt>${query.cp === "C" ? "Call" : "Put"} price</dt><dd>${f(q.price, 2)}</dd><dt>Forward delta</dt><dd>${f(q.delta, 3)}</dd><dt>Vega (per vol pt)</dt><dd>${f(q.vega, 3)}</dd>
+    <dt>Region</dt><dd><span class="chip ${q.inside ? "ok" : "bad"}">${q.inside ? "observed" : "extrapolated"}</span></dd>${q.clamped ? "<dt>Note</dt><dd>maturity clamped to range</dd>" : ""}`;
 }
 
-function renderCalendar() {
-  const s = slices(), n = s.length;
-  const tr = s.map((x, i) => { const kk = lin(x.k_min, x.k_max, 80), on = i === idx;
-    const h = 220 - 190 * i / Math.max(n - 1, 1);
-    return {x:kk, y:kk.map(k => S.w(x, k)), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:`hsl(${h},65%,${on ? 38 : 55}%)`, width:on ? 3.4 : 1.3},
-            opacity:on ? 1 : .8, hovertemplate:`${f(x.days, 0)}d: w=%{y:.4f}<extra></extra>`}; });
-  Plotly.react("cal", tr, L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"total variance w"}, showlegend:false}), CFG);
+/* ---------------- 3D skew ---------------- */
+function renderSkewTab() {
+  const metric = $("#kmetric").value, o = {mask:true, pts:false, rib:$("#k-rib").checked, contours:true, atm:$("#k-atm").checked};
+  draw("skew3d", surfaceTraces(metric, o), sceneL(METRICS[metric].name, {rev:"skew"}));
+  on("skew3d", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (p) setIdx(nearest(p.y), true); });
+  const s = sel(), cols = [C.accent, ...pins.map((_, j) => pinColor(j))], list = [idx, ...pins.filter(i => i !== idx)];
+  draw("skewslice", list.map((i, j) => { const x = sl()[i], X = xf(x), kk = lin(x.k_min, x.k_max, 160);
+    return {x:kk.map(X), y:kk.map(k => S.dw(x, k) / (2 * Math.sqrt(Math.max(S.w(x, k), 1e-12) * x.T))), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:j === 0 ? C.accent : pinColor(pins.indexOf(i)), width:j === 0 ? 2.8 : 1.8}, hovertemplate:`${f(x.days, 0)}d: %{y:.3f}<extra></extra>`}; }),
+    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:XT[xmode]}, yaxis:{title:"dIV / dk"}, showlegend:list.length > 1, shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1, dash:"dot"}}]}));
+  const days = sl().map(x => x.days), y = sl().map(atmSkew);
+  draw("skewterm", [{x:days, y, mode:"lines+markers", line:{color:C.warn, width:2.4}, marker:{size:7}, hovertemplate:"%{x:.0f}d: %{y:.3f}<extra></extra>"}, markerTrace([s.days], [y[idx]])],
+    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:"days to expiry"}, yaxis:{title:"ATM dIV / dk"}, showlegend:false}));
+  on("skewterm", "plotly_click", ev => { if (ev.points[0].curveNumber === 0) setIdx(ev.points[0].pointIndex); });
 }
 
-function renderTables() {
-  const s = slices();
-  $("#tbl").innerHTML = `<table><thead><tr><th>Expiry</th><th>Days</th><th>Quotes</th><th>RMSE</th><th>Max err</th><th>min g</th><th>Butterfly</th><th>Calendar</th></tr></thead><tbody>` +
-    s.map((x, i) => `<tr data-i="${i}" class="${i === idx ? "sel" : ""}"><td>${x.expiry}</td><td>${f(x.days, 0)}</td><td>${x.n}</td><td>${f(x.rmse, 3)}</td><td>${f(x.max_err, 2)}</td><td>${f(x.min_g, 3)}</td>` +
-      `<td><span class="chip ${x.butterfly_ok ? "ok" : "bad"}">${x.butterfly_ok ? "ok" : "arb"}</span></td><td><span class="chip ${x.calendar_ok ? "ok" : "bad"}">${x.calendar_ok ? "ok" : "arb"}</span></td></tr>`).join("") + `</tbody></table>`;
-  document.querySelectorAll("#tbl tr[data-i]").forEach(r => r.addEventListener("click", () => { idx = +r.dataset.i; $("#eslider").value = idx; renderSelected(); }));
+/* ---------------- no-arbitrage ---------------- */
+function densityLine(p, s, color, name, w = 2.4) {
+  const kk = lin(s.k_min - 0.1, s.k_max + 0.1, 220), g = kk.map(k => S.g(p, k));
+  return {kk, min:Math.min(...g), tr:{x:kk, y:g, mode:"lines", name, line:{color, width:w}, hovertemplate:`${name}: g=%{y:.3f}<extra></extra>`}};
 }
-function renderFilters() {
-  const r = D.filters.filter(x => x.reason !== "ok" && x.rows > 0).sort((a, b) => a.rows - b.rows);
-  Plotly.react("filt", [{type:"bar", orientation:"h", y:r.map(x => x.reason.replace(/_/g, " ")), x:r.map(x => x.rows), marker:{color:COL.muted}, text:r.map(x => x.rows), textposition:"outside", hoverinfo:"skip"}],
-    L({margin:{l:90, r:30, t:6, b:36}, xaxis:{title:"rows"}, showlegend:false}), CFG);
-  const c = D.cross; if (!c) { $("#crosscard").style.display = "none"; return; }
-  $("#crosscard").style.display = "";
-  $("#crosstbl").innerHTML = `<table><thead><tr><th>Calibrator</th><th>Mean RMSE (pts)</th><th>Worst err (pts)</th><th>Slices w/ butterfly arb</th><th>Calendar violations</th><th>Gap vs mine (pts)</th></tr></thead><tbody>` +
-    c.map(x => `<tr><td>${x.name}</td><td>${f(x.mean_rmse)}</td><td>${f(x.worst_max_err)}</td><td>${x.slices_with_butterfly_arb}</td><td>${x.calendar_violations}</td><td>${f(x.curve_diff_vs_mine)}</td></tr>`).join("") + `</tbody></table>`;
+function densShapes(s, ztop) {
+  return [{type:"rect", xref:"x", yref:"paper", x0:s.k_min, x1:s.k_max, y0:0, y1:1, fillcolor:C.accent, opacity:.07, line:{width:0}, layer:"below"},
+          {type:"line", xref:"paper", x0:0, x1:1, yref:"y", y0:0, y1:0, line:{color:C.warn, width:1.2, dash:"dot"}}];
+}
+function renderArbTab() {
+  const s = sel(), d = densityLine(s, s, C.accent, `${f(s.days, 0)}d`, 2.8);
+  draw("dens", [{...d.tr, fill:"tozeroy", fillcolor:"rgba(47,91,217,.10)"}, ...pins.filter(i => i !== idx).map((i, j) => densityLine(sl()[i], sl()[i], pinColor(pins.indexOf(i)), `${f(sl()[i].days, 0)}d`, 1.6).tr)],
+    L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:pins.length > 0, shapes:densShapes(s)}));
+  $("#gchip").innerHTML = d.min >= -1e-6 ? '<span class="chip ok">no arbitrage</span>' : '<span class="chip bad">negative density</span>';
+  const n = sl().length;
+  draw("cal", sl().map((x, i) => { const kk = lin(x.k_min, x.k_max, 80), on_ = i === idx;
+    return {x:kk, y:kk.map(k => S.w(x, k)), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:`hsl(${222 - 150 * i / Math.max(n - 1, 1)},62%,${on_ ? (C.surface === "#111a2e" ? 70 : 38) : (C.surface === "#111a2e" ? 58 : 55)}%)`, width:on_ ? 3.6 : 1.4}, opacity:on_ ? 1 : .8, hovertemplate:`${f(x.days, 0)}d: w=%{y:.4f}<extra></extra>`}; }),
+    L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"total variance w"}, showlegend:false}));
+  const g = gridFor("g", true, false, 320), gz = g.z.map(r => r.map(v => v == null ? null : Math.min(Math.max(v, -.5), 2)));
+  draw("gheat", [{type:"heatmap", x:g.k, y:g.T.map(t => t * 365), z:gz, colorscale:GHEAT, zmin:-.5, zmax:2, colorbar:{title:{text:"g(k)", side:"right"}, thickness:10, outlinewidth:0, tickfont:{size:10.5, color:C.muted}}, hovertemplate:"ln(K/F) %{x:.3f}<br>%{y:.0f}d<br>g %{z:.3f}<extra></extra>"}],
+    L({margin:{l:56, r:12, t:6, b:46}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"days to expiry"}}));
+  const mg = sl().map(x => Math.min(...lin(x.k_min - 0.1, x.k_max + 0.1, 120).map(k => S.g(x, k))));
+  draw("ming", [{type:"bar", x:sl().map(x => `${f(x.days, 0)}d`), y:mg, marker:{color:mg.map((v, i) => i === idx ? C.accent : (v >= -1e-6 ? C.call : C.warn)), opacity:.9}, hovertemplate:"%{x}: min g %{y:.4f}<extra></extra>"}],
+    L({margin:{l:56, r:12, t:6, b:46}, xaxis:{title:"expiry", type:"category"}, yaxis:{title:"min g(k)"}, showlegend:false}));
+  on("ming", "plotly_click", ev => setIdx(ev.points[0].pointIndex));
 }
 
-/* ---------- sandbox ---------- */
-const SB = [["a", "a"], ["b", "b"], ["rho", "ρ"], ["m", "m"], ["sigma", "σ"]];
-function sbRange(key, s) {
-  const wmax = Math.max(...s.q.iv.map(v => v * v * s.T));
-  return {a:[-wmax, wmax], b:[0, Math.max(3 * s.b, 0.05)], rho:[-0.99, 0.99], m:[s.k_min - 0.3, s.k_max + 0.3], sigma:[0.005, 1.0]}[key];
-}
+/* ---------------- sandbox ---------------- */
+const SB = [["a", "a", 4], ["b", "b", 3], ["rho", "ρ", 3], ["m", "m", 3], ["sigma", "σ", 3]];
+function sbRange(key, s) { const wmax = Math.max(...s.q.iv.map(v => v * v * s.T));
+  return {a:[-wmax, wmax], b:[0, Math.max(3 * s.b, 0.05)], rho:[-0.99, 0.99], m:[s.k_min - 0.3, s.k_max + 0.3], sigma:[0.005, 1.0]}[key]; }
 function initSandbox() {
-  const s = slices()[idx]; sandbox = {a:s.a, b:s.b, rho:s.rho, m:s.m, sigma:s.sigma};
+  const s = sel(); sandbox = {a:s.a, b:s.b, rho:s.rho, m:s.m, sigma:s.sigma};
   $("#sbctl").innerHTML = SB.map(([k, sym]) => { const [lo, hi] = sbRange(k, s);
     return `<div class="sl"><label for="sb-${k}"><i>${sym}</i></label><input id="sb-${k}" type="range" min="${lo}" max="${hi}" step="${(hi - lo) / 400}" value="${sandbox[k]}"><output id="sbo-${k}"></output></div>`; }).join("");
   SB.forEach(([k]) => $("#sb-" + k).addEventListener("input", e => { sandbox[k] = +e.target.value; renderSandbox(); }));
 }
 function renderSandbox() {
-  const s = slices()[idx], p = sandbox, q = s.q;
-  SB.forEach(([k]) => { $("#sbo-" + k).textContent = f(p[k], k === "a" ? 4 : 3); });
-  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 200);
-  const rmse = Math.sqrt(q.k.reduce((a, k, i) => a + Math.pow(ivOf(p, k, s.T) - q.iv[i], 2), 0) / q.k.length) * 100;
-  const d = densityTrace(p, s, COL.accent), okB = d.min >= -1e-6;
-  const prev = idx > 0 ? slices()[idx - 1] : null; let okC = true;
-  if (prev) { const lo = Math.max(prev.k_min, s.k_min) - 0.05, hi = Math.min(prev.k_max, s.k_max) + 0.05;
-    if (lo < hi) okC = lin(lo, hi, 61).every(k => S.w(p, k) - S.w(prev, k) >= -1e-9); }
-  const minW = Math.min(...kk.map(k => S.w(p, k)));
-  $("#sbstat").innerHTML = `<span class="chip ${okB ? "ok" : "bad"}">${okB ? "no butterfly arb" : "butterfly arbitrage"}</span> <span class="chip ${okC ? "ok" : "bad"}">${okC ? "calendar ok" : "calendar violated"}</span>` +
-    (minW < 0 ? ' <span class="chip bad">negative variance</span>' : "") + ` <span style="color:var(--muted);font-size:13px">RMSE ${f(rmse, 2)} pts</span>`;
-  Plotly.react("sbsmile", [
-    {x:q.k, y:q.iv.map(v => v * 100), mode:"markers", marker:{size:4, color:COL.muted}, name:"market", hoverinfo:"skip"},
-    {x:kk, y:kk.map(k => ivOf(s, k, s.T) * 100), mode:"lines", line:{color:COL.muted, dash:"dot", width:1.5}, name:"fitted", hoverinfo:"skip"},
-    {x:kk, y:kk.map(k => ivOf(p, k, s.T) * 100), mode:"lines", line:{color:COL.accent, width:2.2}, name:"sandbox", hoverinfo:"skip"}],
-    L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"IV (%)"}, legend:{orientation:"h", y:1.2}}), CFG);
-  const dl = densLayout(s); dl.shapes[1].y1 = 0;
-  Plotly.react("sbdens", [{...d.tr, line:{color:okB ? COL.accent : COL.warn, width:2}, fillcolor:okB ? "rgba(37,99,235,.07)" : "rgba(220,38,38,.12)"}], dl, CFG);
+  const s = sel(), p = sandbox, q = s.q; SB.forEach(([k, , d]) => { $("#sbo-" + k).textContent = f(p[k], d); });
+  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 200), rmse = Math.sqrt(q.k.reduce((a, k, i) => a + Math.pow(ivOf(p, k, s.T) - q.iv[i], 2), 0) / q.k.length) * 100;
+  const d = densityLine(p, s, C.accent, "sandbox"), okB = d.min >= -1e-6, prev = idx > 0 ? sl()[idx - 1] : null; let okC = true;
+  if (prev) { const lo = Math.max(prev.k_min, s.k_min) - 0.05, hi = Math.min(prev.k_max, s.k_max) + 0.05; if (lo < hi) okC = lin(lo, hi, 61).every(k => S.w(p, k) - S.w(prev, k) >= -1e-9); }
+  const negW = Math.min(...kk.map(k => S.w(p, k))) < 0;
+  $("#sbstat").innerHTML = `<span class="chip ${okB ? "ok" : "bad"}">${okB ? "no butterfly arb" : "butterfly arbitrage"}</span> <span class="chip ${okC ? "ok" : "bad"}">${okC ? "calendar ok" : "calendar violated"}</span>${negW ? ' <span class="chip bad">negative variance</span>' : ""} <span style="color:var(--muted);font-size:13px">RMSE ${f(rmse, 2)} pts</span>`;
+  draw("sbsmile", [{x:q.k, y:q.iv.map(v => v * 100), mode:"markers", marker:{size:4.5, color:C.muted, opacity:.7}, name:"market", hoverinfo:"skip"},
+    {x:kk, y:kk.map(k => ivOf(s, k, s.T) * 100), mode:"lines", line:{color:C.muted, dash:"dot", width:1.6}, name:"fitted", hoverinfo:"skip"},
+    {x:kk, y:kk.map(k => ivOf(p, k, s.T) * 100), mode:"lines", line:{color:okB ? C.accent : C.warn, width:2.6}, name:"sandbox", hoverinfo:"skip"}],
+    L({margin:{l:56, r:14, t:6, b:42}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"IV (%)"}, legend:{orientation:"h", y:1.16}}));
+  draw("sbdens", [{...d.tr, line:{color:okB ? C.accent : C.warn, width:2.4}, fill:"tozeroy", fillcolor:okB ? "rgba(47,91,217,.10)" : "rgba(224,71,91,.16)"}],
+    L({margin:{l:56, r:14, t:6, b:42}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:false, shapes:densShapes(s)}));
 }
 
-function renderSelected() {
-  const s = slices()[idx];
-  $("#elabel").innerHTML = `${s.expiry} &middot; ${f(s.days, 0)} days <span style="color:var(--muted);font-weight:400">&middot; F ${f(s.F, 2)} &middot; ${s.n} quotes &middot; RMSE ${f(s.rmse, 2)} pts</span>`;
-  renderSmile(); renderResid(); renderDensity(); renderSurface(); renderTerm(); renderCalendar(); renderTables();
-  initSandbox(); renderSandbox();
-  history.replaceState(null, "", `#${D.label}/${idx}`);
+/* ---------------- data ---------------- */
+function renderDataTab() {
+  const r = D.filters.filter(x => x.reason !== "ok" && x.rows > 0).sort((a, b) => a.rows - b.rows);
+  draw("filt", [{type:"bar", orientation:"h", y:r.map(x => x.reason.replace(/_/g, " ")), x:r.map(x => x.rows), marker:{color:C.accent, opacity:.85}, text:r.map(x => x.rows.toLocaleString()), textposition:"outside", cliponaxis:false, hoverinfo:"skip"}],
+    L({margin:{l:100, r:44, t:6, b:42}, xaxis:{title:"rows"}, showlegend:false}));
+  $("#tbl").innerHTML = `<table><thead><tr><th>Expiry</th><th>Days</th><th>Quotes</th><th>RMSE</th><th>Max err</th><th>min g</th><th>Butterfly</th><th>Calendar</th></tr></thead><tbody>` +
+    sl().map((x, i) => `<tr data-i="${i}" class="${i === idx ? "sel" : ""}"><td>${x.expiry}</td><td>${f(x.days, 0)}</td><td>${x.n}</td><td>${f(x.rmse, 3)}</td><td>${f(x.max_err, 2)}</td><td>${f(x.min_g, 3)}</td>` +
+      `<td><span class="chip ${x.butterfly_ok ? "ok" : "bad"}">${x.butterfly_ok ? "ok" : "arb"}</span></td><td><span class="chip ${x.calendar_ok ? "ok" : "bad"}">${x.calendar_ok ? "ok" : "arb"}</span></td></tr>`).join("") + "</tbody></table>";
+  $$("#tbl tr[data-i]").forEach(t => t.addEventListener("click", () => setIdx(+t.dataset.i)));
+  const c = D.cross; $("#crosscard").style.display = c ? "" : "none";
+  if (c) $("#crosstbl").innerHTML = `<table><thead><tr><th>Calibrator</th><th>Mean RMSE (pts)</th><th>Worst err (pts)</th><th>Slices w/ butterfly arb</th><th>Calendar violations</th><th>Gap vs mine (pts)</th></tr></thead><tbody>` +
+    c.map(x => `<tr><td>${x.name}</td><td>${f(x.mean_rmse)}</td><td>${f(x.worst_max_err)}</td><td>${x.slices_with_butterfly_arb}</td><td>${x.calendar_violations}</td><td>${f(x.curve_diff_vs_mine)}</td></tr>`).join("") + "</tbody></table>";
 }
 
-/* ---------- loading ---------- */
-async function load(label, keepIdx) {
-  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.id === "ds-" + label));
-  try {
-    if (!cache[label]) { const r = await fetch(`data/${label}.json`); if (!r.ok) throw new Error(r.status); cache[label] = await r.json(); }
-  } catch (e) {
-    $("#app").innerHTML = `<div class="msg">Could not load <code>data/${label}.json</code>. Browsers block <code>fetch</code> on <code>file://</code>; serve this folder over HTTP:<br><code>python -m http.server</code> in <code>docs/</code>, or open the GitHub Pages URL.</div>`;
-    return;
-  }
-  D = cache[label]; idx = Math.min(keepIdx ?? Math.floor(D.slices.length / 2), D.slices.length - 1);
-  build(); renderKpis(); renderFilters();
-  const sl = $("#eslider"); sl.max = D.slices.length - 1; sl.value = idx;
-  renderSelected();
+/* ---------------- shell ---------------- */
+const TABS = {overview:renderOverview, surface:renderSurfaceTab, skew:renderSkewTab, arb:renderArbTab, sandbox:() => { initSandbox(); renderSandbox(); }, data:renderDataTab};
+function refresh() { readTheme(); const s = sel();
+  $("#elabel").innerHTML = `${dateStr(s.expiry)} &middot; ${f(s.days, 0)} days<small>F ${f(s.F, 2)} &middot; ${s.n} quotes &middot; RMSE ${f(s.rmse, 2)} pts</small>`;
+  $("#eslider").value = idx; $("#pin").textContent = pins.includes(idx) ? "Unpin" : "Pin to compare";
+  $("#pins").innerHTML = pins.map((i, j) => `<span class="pin"><i style="background:${pinColor(j)}"></i>${f(sl()[i].days, 0)}d<button data-unpin="${i}" aria-label="Remove pin">&times;</button></span>`).join("");
+  $$("[data-unpin]").forEach(b => b.addEventListener("click", () => { pins = pins.filter(i => i !== +b.dataset.unpin); refresh(); }));
+  TABS[active](); history.replaceState(null, "", `#${D.label}/${idx}/${active}`); }
+function setIdx(i, keepTab) { idx = Math.max(0, Math.min(sl().length - 1, i)); detail = null; refresh(); }
+function setTab(t) { active = t; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + t)); refresh(); }
+function play(on_) { clearInterval(timer); timer = null; $("#play").innerHTML = on_ ? "&#10074;&#10074; Pause" : "&#9654; Play";
+  if (on_) timer = setInterval(() => setIdx((idx + 1) % sl().length), 1100); }
+function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type:"text/csv"})); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+
+async function load(label, keep) {
+  play(false); $$(".seg button").forEach(b => b.setAttribute("aria-pressed", b.id === "ds-" + label));
+  try { if (!cache["d" + label]) { const r = await fetch(`data/${label}.json`); if (!r.ok) throw 0; cache["d" + label] = await r.json(); } }
+  catch (e) { $("#loading").style.display = ""; $("#loading").innerHTML = `Could not load <code>data/${label}.json</code>. Browsers block <code>fetch</code> on <code>file://</code>; serve <code>docs/</code> over HTTP (<code>python -m http.server</code>) or open the GitHub Pages URL.`; return; }
+  D = cache["d" + label]; pins = []; detail = null; query.K = Math.round(D.spot); query.days = Math.round(D.slices[Math.floor(D.slices.length / 2)].days);
+  idx = Math.min(keep ?? Math.floor(D.slices.length / 2), D.slices.length - 1);
+  $("#loading").style.display = "none"; if (!$("#tab-" + active).classList.contains("on")) $("#tab-" + active).classList.add("on");
+  const e = $("#eslider"); e.max = D.slices.length - 1; $("#subtitle").textContent = D.title; refresh();
 }
-document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => load(b.id.slice(3))));
+
+/* wiring */
+$("#smetric").innerHTML = Object.entries(METRICS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
+$$(".seg button").forEach(b => b.addEventListener("click", () => load(b.id.slice(3))));
+$$(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+$("#eslider").addEventListener("input", e => setIdx(+e.target.value));
+$("#prev").addEventListener("click", () => setIdx(idx - 1)); $("#next").addEventListener("click", () => setIdx(idx + 1));
+$("#play").addEventListener("click", () => play(!timer));
+$("#pin").addEventListener("click", () => { pins = pins.includes(idx) ? pins.filter(i => i !== idx) : [...pins, idx].slice(-5); refresh(); });
+$$("#xseg button").forEach(b => b.addEventListener("click", () => { xmode = b.dataset.x; $$("#xseg button").forEach(x => x.setAttribute("aria-pressed", x === b)); refresh(); }));
+$$("#smtools input").forEach(i => i.addEventListener("change", () => { show[i.dataset.s] = i.checked; renderSmile(); }));
+$("#termmetric").addEventListener("change", renderTerm);
+["smetric", "s-pts", "s-rib", "s-mask"].forEach(id => $("#" + id).addEventListener("change", renderSurfaceTab));
+["kmetric", "k-rib", "k-atm"].forEach(id => $("#" + id).addEventListener("change", renderSkewTab));
+$$("[data-cam]").forEach(b => b.addEventListener("click", () => Plotly.relayout("surf", {"scene.camera":CAMS[b.dataset.cam]})));
+$$("[data-kcam]").forEach(b => b.addEventListener("click", () => Plotly.relayout("skew3d", {"scene.camera":CAMS[b.dataset.kcam]})));
+["q-days", "q-K", "q-cp"].forEach(id => $("#" + id).addEventListener("input", () => { query.days = +$("#q-days").value; query.K = +$("#q-K").value; query.cp = $("#q-cp").value; renderSurfaceTab(); }));
+$("#q-sel").addEventListener("click", () => { query.days = Math.round(sel().days); renderSurfaceTab(); });
+$("#sbreset").addEventListener("click", () => { initSandbox(); renderSandbox(); });
+$("#dl-grid").addEventListener("click", () => { const m = $("#smetric").value, g = gridFor(m, $("#s-mask").checked, true), rows = ["ln_k,days," + m];
+  g.T.forEach((t, i) => g.kRows[i].forEach((k, j) => rows.push(`${k.toFixed(4)},${(t * 365).toFixed(2)},${g.z[i][j].toFixed(5)}`))); download(`${D.label}_${m}_grid.csv`, rows.join("\n")); });
+$("#dl-par").addEventListener("click", () => download(`${D.label}_svi_params.csv`, "expiry,days,a,b,rho,m,sigma,rmse_pts,min_g\n" + sl().map(x => [x.expiry, x.days, x.a, x.b, x.rho, x.m, x.sigma, x.rmse, x.min_g].join(",")).join("\n")));
+$("#dl-q").addEventListener("click", () => { const s = sel(), q = s.q; download(`${D.label}_${s.expiry}_quotes.csv`, "type,strike,bid,ask,ln_k,iv\n" + q.k.map((k, i) => [q.type[i], q.K[i], q.bid[i], q.ask[i], k, q.iv[i]].join(",")).join("\n")); });
+$("#theme").addEventListener("click", () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("ivd-theme", t); } catch (e) {} $("#theme").textContent = t === "dark" ? "Light mode" : "Dark mode"; if (D) { Object.keys(cache).filter(k => !k.startsWith("d")).forEach(k => delete cache[k]); refresh(); } });
+document.addEventListener("keydown", e => { if (!D || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
+  if (e.key === "ArrowRight") { setIdx(idx + 1); e.preventDefault(); } else if (e.key === "ArrowLeft") { setIdx(idx - 1); e.preventDefault(); } else if (e.key === " ") { play(!timer); e.preventDefault(); } });
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => $$(".tab.on .plot").forEach(p => p.data && Plotly.Plots.resize(p)), 150); });
+
+$("#theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light mode" : "Dark mode";
 const h = location.hash.slice(1).split("/");
+if (["overview", "surface", "skew", "arb", "sandbox", "data"].includes(h[2])) { active = h[2]; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === active)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + active)); }
 load(["SPY", "SYNTHETIC"].includes(h[0]) ? h[0] : "SPY", h[1] !== undefined && !isNaN(+h[1]) ? +h[1] : undefined);
 </script>
 </body></html>

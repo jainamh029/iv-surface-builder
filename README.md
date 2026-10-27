@@ -9,10 +9,18 @@ one flat volatility; the surface shows how wrong that is.
 On a live SPY chain (26 Oct 2026, after the close) the at-the-money vol is ~15%, while far out-of-the-money
 puts at the front of the curve price in ~60%. The red dashed line above is the flat vol Black-Scholes would use.
 
-**Live demo:** https://jainamh029.github.io/iv-surface-builder/ &nbsp;|&nbsp;
-**[Interactive dashboard](https://jainamh029.github.io/iv-surface-builder/dashboard.html)**: expiry slider, smile and residuals,
-no-arbitrage density check, 3D surface, and an *SVI sandbox* where you drag the parameters and watch butterfly arbitrage appear.
-Everything runs client-side from exported JSON, so it hosts on GitHub Pages as plain static files.
+**Live demo:** https://jainamh029.github.io/iv-surface-builder/ &nbsp;|&nbsp; **[Interactive dashboard](https://jainamh029.github.io/iv-surface-builder/dashboard.html)**
+
+The dashboard is a static page (no server, no build step) with light and dark themes:
+* **Linked expiry control**: slider, step buttons, autoplay and arrow keys drive every chart; pin up to five expiries to overlay and compare.
+* **Smile explorer**: click any quote for contract detail; switch the x-axis between ln(K/F), K/F and strike.
+* **3D surface** of IV, total variance, local skew or density, with a *query tool*: click the surface or type a strike and maturity to get the implied vol, Black-76 price, delta and vega.
+* **3D skew surface**: local skew d(IV)/dk over strike and maturity on a diverging scale centred at zero, with projected contours and an ATM ridge.
+* **No-arbitrage views**: density g(k), calendar curves, a g(k) heatmap and minimum g per expiry.
+* **SVI sandbox**: drag the five parameters and watch butterfly and calendar arbitrage appear.
+* **Data and audit**: filter breakdown, per-expiry fit table, svi-py comparison, CSV export of the surface grid, parameters and quotes.
+
+All surface maths is re-implemented client-side in JavaScript from the exported SVI parameters; the query tool was checked against the Python library to the printed precision.
 
 | | |
 |---|---|

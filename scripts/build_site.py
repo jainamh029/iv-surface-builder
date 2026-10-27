@@ -64,7 +64,7 @@ def validation_figure(path: Path) -> dict:
     return stats, prep, fits
 
 
-def dataset_payload(label, title, quotes, report, audit, spot, asof, truth=False, cross=None):
+def dataset_payload(label, title, quotes, report, audit, spot, asof, rate, truth=False, cross=None):
     """Everything the dashboard needs for one dataset, as plain JSON-able Python."""
     rep = report.set_index("expiry")
     slices = []
@@ -83,12 +83,12 @@ def dataset_payload(label, title, quotes, report, audit, spot, asof, truth=False
             sl["truth"] = dict(k=kk.round(5).tolist(), iv=true_iv(kk, sl["T"]).round(5).tolist())
         slices.append(sl)
     reasons = audit["reason"].value_counts()
-    return dict(label=label, title=title, spot=spot, asof=asof, n_raw=int(len(audit)),
+    return dict(label=label, title=title, spot=spot, asof=asof, rate=rate, n_raw=int(len(audit)),
                 n_kept=int((audit["reason"] == "ok").sum()),
                 filters=[dict(reason=k, rows=int(v)) for k, v in reasons.items()], slices=slices, cross=cross)
 
 
-def export_dashboard(run, syn_prep, syn_fits, spot, asof):
+def export_dashboard(run, syn_prep, syn_fits, spot, asof, rate):
     import json
 
     from ivsurface.surface import IVSurface
@@ -96,10 +96,10 @@ def export_dashboard(run, syn_prep, syn_fits, spot, asof):
     cross = pd.read_csv(run / "crosscheck_summary.csv").rename(columns={"fitter": "name"})
     cross = cross[["name", "mean_rmse", "worst_max_err", "slices_with_butterfly_arb", "calendar_violations", "curve_diff_vs_mine"]]
     spy = dataset_payload("SPY", "SPY, live snapshot", pd.read_csv(run / "quotes_clean.csv"), pd.read_csv(run / "svi_params.csv"),
-                          pd.read_csv(run / "quotes_audit.csv"), spot, asof, cross=cross.round(4).to_dict("records"))
+                          pd.read_csv(run / "quotes_audit.csv"), spot, asof, rate, cross=cross.round(4).to_dict("records"))
     rep = IVSurface(syn_fits, 500.0, "2026-10-26", 0.04).arbitrage_report()
     syn = dataset_payload("SYNTHETIC", "Synthetic chain with known truth", syn_prep.quotes, rep, syn_prep.audit,
-                          500.0, "2026-10-26", truth=True)
+                          500.0, "2026-10-26", 0.04, truth=True)
     out = DOCS / "data"
     out.mkdir(exist_ok=True)
     for d in (spy, syn):
@@ -153,7 +153,7 @@ def main(run: Path) -> None:
     f2 = lambda v: f"{float(v):.2f}"
     f3 = lambda v: f"{float(v):.3f}"
 
-    export_dashboard(run, syn_prep, syn_fits, spot, asof)
+    export_dashboard(run, syn_prep, syn_fits, spot, asof, float(surf["rate"]))
 
     page = TEMPLATE
     subs = {
