@@ -4,6 +4,12 @@ Take a real options chain, work backwards from option prices to the volatility t
 at every strike and expiry, fit an arbitrage-aware surface, and plot it in 3D. Black-Scholes assumes
 one flat volatility; the surface shows how wrong that is.
 
+<p align="center">
+  <img src="social/linkedin_post.png" alt="Chart of SPY implied volatility by strike: about 60% for far out-of-the-money puts versus a flat 15% Black-Scholes line" width="560">
+</p>
+
+Smiles by expiry, with the SVI fit and the flat Black-Scholes vol:
+
 ![SPY volatility smiles with SVI fit and flat Black-Scholes vol](docs/smiles.png)
 
 On a live SPY chain (26 Oct 2026, after the close) the at-the-money vol is ~15%, while far out-of-the-money
@@ -127,7 +133,8 @@ python -m http.server -d docs                # preview at http://localhost:8000 
 
 ```
 ivsurface/      black.py  data.py  synthetic.py  prep.py  svi.py  surface.py  plots.py  cli.py
-scripts/        crosscheck_svi_py.py   build_site.py
+scripts/        crosscheck_svi_py.py   build_site.py   make_linkedin_image.py
+social/         linkedin_post.png: shareable summary graphic (python scripts/make_linkedin_image.py outputs/SPY social/linkedin_post.png)
 tests/          13 tests: pricing, SVI recovery, constraints, end-to-end on a known surface
 docs/           static site: index.html (report), dashboard.html (interactive), data/*.json, assets/
 data/           raw chains saved by live runs (git-ignored: Yahoo data is not redistributed here)
