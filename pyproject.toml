@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ivsurface"
+version = "0.1.0"
+description = "Build an arbitrage-aware implied volatility surface from a real options chain"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "plotly",
+    "yfinance",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+ivsurface = "ivsurface.cli:main"
+
+[tool.setuptools]
+packages = ["ivsurface"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

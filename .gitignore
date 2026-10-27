@@ -1,0 +1,8 @@
+.venv/
+.venv-xcheck/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+outputs/
+.DS_Store
+data/*.csv

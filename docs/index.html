@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Implied Volatility Surface Builder</title>
+<meta name="description" content="Option prices to a no-arbitrage SVI volatility surface, validated against a known truth and cross-checked against svi-py.">
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#fff;--soft:#f8fafc;--accent:#2563eb;--warn:#dc2626}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 20px}
+header.hero{padding:64px 0 36px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--soft),#fff)}
+.eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-size:clamp(30px,5vw,46px);line-height:1.1;margin:10px 0 14px;letter-spacing:-.02em}
+.lede{font-size:19px;color:#374151;max-width:760px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:30px 0 8px}
+.stat{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+.stat b{display:block;font-size:26px;letter-spacing:-.02em;line-height:1.2}
+.stat span{font-size:13px;color:var(--muted)}
+.links{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
+.btn{display:inline-block;padding:9px 16px;border-radius:9px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-weight:600;font-size:14px;background:#fff}
+.btn.primary{background:var(--ink);color:#fff;border-color:var(--ink)}
+section{padding:46px 0;border-bottom:1px solid var(--line)}
+h2{font-size:26px;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 22px;max-width:760px}
+p{max-width:760px}
+img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:12px;display:block}
+.frame{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.frame iframe{width:100%;height:600px;border:0;display:block}
+.tbl{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--soft)}
+td:not(:first-child),th:not(:first-child){text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:#fff}
+.card h3{margin:0 0 6px;font-size:16px}.card p{margin:0;font-size:15px;color:#374151}
+.callout{border-left:3px solid var(--accent);background:var(--soft);padding:14px 18px;border-radius:0 10px 10px 0;max-width:760px}
+.callout.warn{border-color:var(--warn)}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f4f6;padding:2px 6px;border-radius:5px}
+pre{background:#0f172a;color:#e2e8f0;padding:16px 18px;border-radius:12px;overflow-x:auto;font:13px/1.6 ui-monospace,Menlo,monospace}
+footer{padding:34px 0 60px;color:var(--muted);font-size:14px}
+@media(max-width:720px){.grid2{grid-template-columns:1fr}.frame iframe{height:420px}header.hero{padding:40px 0 24px}}
+</style></head><body>
+
+<header class="hero"><div class="wrap">
+<div class="eyebrow">Quant project &middot; derivatives</div>
+<h1>Implied Volatility Surface Builder</h1>
+<p class="lede">Take a real options chain, work backwards from prices to the volatility the market is pricing at every strike and expiry, fit an arbitrage-aware surface, and see the smile and skew that Black-Scholes assumes away.</p>
+<div class="stats">
+<div class="stat"><b>1,528</b><span>of 3,701 SPY contracts survive cleaning</span></div>
+<div class="stat"><b>10</b><span>expiries fitted, as of 2026-10-26</span></div>
+<div class="stat"><b>0.16 pts</b><span>mean fit error on market quotes</span></div>
+<div class="stat"><b>0</b><span>butterfly / calendar arbitrage violations</span></div>
+</div>
+<div class="links"><a class="btn primary" href="#surface">Explore the surface</a><a class="btn" href="dashboard.html">Live dashboard</a><a class="btn" href="#validation">Validation</a><a class="btn" href="#crosscheck">svi-py cross-check</a></div>
+</div></header>
+
+<div class="wrap">
+
+<section id="why"><h2>Why this matters</h2>
+<p class="sub">Options traders quote volatility, not price. Black-Scholes assumes one volatility for every strike; the market disagrees loudly.</p>
+<p>On 2026-10-26 the SPY at-the-money implied vol was about <b>14.8%</b> at the shortest expiry and <b>17.1%</b> at the longest, while far out-of-the-money puts at the front of the curve priced in as much as <b>59%</b>. Index crash risk is what that skew is paying for. The red dashed line on every panel below is the flat volatility Black-Scholes would use.</p>
+<img src="smiles.png" alt="Volatility smiles by expiry with SVI fit and the flat Black-Scholes volatility" loading="lazy">
+</section>
+
+<section id="surface"><h2>The surface</h2>
+<p class="sub">Interactive. Drag to rotate, scroll to zoom. Black dots are the market quotes; the surface is the fitted SVI. Regions outside the observed strikes are masked rather than extrapolated.</p>
+<div class="frame"><iframe src="surface.html" title="Interactive 3D implied volatility surface" loading="lazy"></iframe></div>
+<p style="margin-top:22px">The skew is steepest at short maturities and flattens with time; the term structure of at-the-money vol is upward sloping, with a bump around the first two expiries.</p>
+<img src="summary.png" alt="ATM term structure, ATM skew and what the cleaning stage dropped" loading="lazy">
+</section>
+
+<section id="method"><h2>How it works</h2>
+<p class="sub">Five stages, each with its own module and tests.</p>
+<div class="grid2">
+<div class="card"><h3>1 &middot; Clean, and show your work</h3><p>Crossed, one-sided, wide-spread, penny and statistically odd quotes are removed. Every dropped row is kept with its reason so nothing disappears silently.</p></div>
+<div class="card"><h3>2 &middot; Forward from put-call parity</h3><p><code>F = K + (C - P)/DF</code> near the money, so dividends and borrow costs are read from the market instead of assumed.</p></div>
+<div class="card"><h3>3 &middot; Invert Black-76</h3><p>Out-of-the-money options only, solved with vectorised bisection. Quotes violating static no-arbitrage bounds are rejected instead of producing nonsense vols.</p></div>
+<div class="card"><h3>4 &middot; Constrained raw SVI</h3><p>Zeliade's quasi-explicit reduction turns each slice into a small linear least-squares problem, with positivity, Lee wing bounds and calendar spreads as linear constraints, plus a butterfly check and repair.</p></div>
+</div>
+<h3 style="margin-top:34px">What the cleaning stage removed</h3>
+<div class="tbl"><table><thead><tr><th>Filter</th><th>Rows</th></tr></thead><tbody><tr><td>not otm</td><td>1,113</td></tr><tr><td>short dated</td><td>477</td></tr><tr><td>no quote</td><td>221</td></tr><tr><td>low price</td><td>131</td></tr><tr><td>far otm</td><td>117</td></tr><tr><td>wide spread</td><td>113</td></tr><tr><td>iv outlier</td><td>1</td></tr></tbody></table></div>
+<p class="callout" style="margin-top:6px">"Not otm" is not data loss: each strike contributes its out-of-the-money leg only, so the in-the-money twin is intentionally skipped.</p>
+<h3 style="margin-top:34px">Per-expiry fit and arbitrage audit</h3>
+<div class="tbl"><table><thead><tr><th>Expiry</th><th>Days</th><th>Quotes</th><th>RMSE (vol pts)</th><th>Max err (vol pts)</th><th>No butterfly arb</th><th>No calendar arb</th></tr></thead><tbody><tr><td>2026-11-04</td><td>9</td><td>104</td><td>0.277</td><td>1.16</td><td>yes</td><td>yes</td></tr><tr><td>2026-11-06</td><td>11</td><td>127</td><td>0.284</td><td>1.21</td><td>yes</td><td>yes</td></tr><tr><td>2026-11-13</td><td>18</td><td>146</td><td>0.230</td><td>1.07</td><td>yes</td><td>yes</td></tr><tr><td>2026-11-27</td><td>32</td><td>137</td><td>0.099</td><td>0.34</td><td>yes</td><td>yes</td></tr><tr><td>2026-12-04</td><td>39</td><td>129</td><td>0.082</td><td>0.27</td><td>yes</td><td>yes</td></tr><tr><td>2026-12-31</td><td>66</td><td>314</td><td>0.123</td><td>0.66</td><td>yes</td><td>yes</td></tr><tr><td>2027-01-29</td><td>95</td><td>180</td><td>0.108</td><td>1.04</td><td>yes</td><td>yes</td></tr><tr><td>2027-03-19</td><td>144</td><td>110</td><td>0.103</td><td>0.29</td><td>yes</td><td>yes</td></tr><tr><td>2027-06-17</td><td>234</td><td>125</td><td>0.118</td><td>0.26</td><td>yes</td><td>yes</td></tr><tr><td>2027-09-30</td><td>339</td><td>156</td><td>0.133</td><td>0.36</td><td>yes</td><td>yes</td></tr></tbody></table></div>
+</section>
+
+<section id="validation"><h2>Validation against a known truth</h2>
+<p class="sub">A fit that matches the market proves little if the market is noisy. So the pipeline is also run on a chain generated from a known arbitrage-free SSVI surface, with bid/ask noise, tick rounding and injected bad quotes.</p>
+<img src="validation.png" alt="Recovered surface versus true surface on a synthetic chain" loading="lazy">
+<p style="margin-top:18px">Across every slice, inside the observed strikes, the recovered vols are within <b>0.18 vol points</b> of the truth (RMS <b>0.03</b>). This is enforced as a test, not just plotted.</p>
+</section>
+
+<section id="crosscheck"><h2>Cross-check against svi-py</h2>
+<p class="sub">An independent implementation, run on exactly the same cleaned quotes and forwards. Fit quality, butterfly and calendar checks are computed by a separate script, not by either library.</p>
+<img src="crosscheck_svi_py.png" alt="Fit error of this project versus svi-py, default and tuned" loading="lazy">
+<div class="tbl"><table><thead><tr><th>Calibrator</th><th>Mean RMSE (vol pts)</th><th>Worst error (vol pts)</th><th>Slices w/ butterfly arb</th><th>Calendar violations</th><th>Curve gap vs mine (vol pts)</th></tr></thead><tbody><tr><td>this project</td><td>0.16</td><td>1.21</td><td>0</td><td>0</td><td>0.00</td></tr><tr><td>svi-py default</td><td>1.15</td><td>9.80</td><td>6</td><td>45</td><td>1.04</td></tr><tr><td>svi-py default + no-butterfly</td><td>1.45</td><td>8.37</td><td>0</td><td>23</td><td>1.27</td></tr><tr><td>svi-py tuned</td><td>0.15</td><td>1.04</td><td>0</td><td>1</td><td>0.06</td></tr><tr><td>svi-py tuned + no-butterfly</td><td>0.17</td><td>1.02</td><td>0</td><td>0</td><td>0.11</td></tr></tbody></table></div>
+<div class="callout"><b>Reading it honestly.</b> With its default settings svi-py averages <b>1.15</b> vol points of error, because it minimises unweighted <i>total-variance</i> error, which neglects the at-the-money region. Switched to its own <code>implied_vol</code> objective with multi-start, it reaches <b>0.15</b>, essentially level with this project's <b>0.16</b>, and the fitted curves agree to about a tenth of a vol point. Two independent calibrators converging is the real result. The differences are that this one enforces calendar spreads by construction, and that it is about 15&ndash;20&times; faster than svi-py's tuned configuration (roughly 0.09 s versus 1.5&ndash;2 s per slice); svi-py's untuned default is faster still (about 0.01 s) but is the inaccurate one.</div>
+</section>
+
+<section id="run"><h2>Run it</h2>
+<pre>pip install -e ".[dev]"
+python -m ivsurface SPY            # live chain from Yahoo Finance
+python -m ivsurface --synthetic    # offline, known ground truth
+pytest                             # 13 tests</pre>
+</section>
+
+<section id="limits" style="border-bottom:0"><h2>Limitations</h2>
+<div class="callout warn">
+<p style="margin:0 0 8px">SPY options are American-style but priced here with Black-76. Using only out-of-the-money options limits the error, but a European index such as <code>^SPX</code> is the clean choice.</p>
+<p style="margin:0 0 8px">Free Yahoo data is delayed; this snapshot was taken after the close. The discount rate is a flat constant used only for discounting.</p>
+<p style="margin:0">Arbitrage checks cover the observed strike range plus a small margin. Beyond it the surface is extrapolation, and is masked in the 3D view.</p></div>
+</section>
+
+</div>
+<footer><div class="wrap">Built with Python, NumPy, SciPy, pandas, Plotly and Matplotlib. Data: Yahoo Finance.</div></footer>
+</body></html>

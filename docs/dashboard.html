@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IV Surface Dashboard</title>
+<meta name="description" content="Interactive implied volatility surface dashboard: smiles, no-arbitrage checks, 3D surface and an SVI sandbox.">
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#fff;--soft:#f8fafc;--accent:#2563eb;--warn:#dc2626;--ok:#059669}
+*{box-sizing:border-box}
+body{margin:0;background:var(--soft);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif}
+a{color:var(--accent)}
+.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.top .in{max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.brand{font-weight:700;letter-spacing:-.01em;margin-right:auto}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:7px 13px;font:600 13px inherit;font-family:inherit;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.nav a{font-size:14px;text-decoration:none;color:var(--muted);margin-left:14px;font-weight:600}
+main{max-width:1240px;margin:0 auto;padding:20px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.kpi b{display:block;font-size:24px;letter-spacing:-.02em;line-height:1.25}.kpi span{font-size:12.5px;color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+.card h2{font-size:16px;margin:0 0 2px;letter-spacing:-.005em}.card .sub{font-size:13px;color:var(--muted);margin:0 0 8px}
+.ctl{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.ctl input[type=range]{flex:1;min-width:200px;accent-color:var(--accent)}
+.ctl .lbl{font-weight:600;min-width:260px}
+.row{display:grid;gap:16px;grid-template-columns:1.6fr 1fr}
+.row3{display:grid;gap:16px;grid-template-columns:repeat(3,1fr)}
+.row2{display:grid;gap:16px;grid-template-columns:1fr 1fr}
+.plot{width:100%}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;font-weight:600}
+.chip.ok{background:#d1fae5;color:#065f46}.chip.bad{background:#fee2e2;color:#991b1b}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--soft)}
+tbody tr.sel{background:#eff6ff}tbody tr[data-i]{cursor:pointer}tbody tr[data-i]:hover{background:#f3f4f6}
+.tw{overflow-x:auto}
+.sl{display:grid;grid-template-columns:70px 1fr 70px;gap:10px;align-items:center;margin:6px 0;font-size:13.5px}
+.sl input{accent-color:var(--accent);width:100%}.sl output{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 12px;font:600 13px inherit;font-family:inherit;cursor:pointer}
+.msg{padding:40px 20px;text-align:center;color:var(--muted)}
+.tog{font-size:13px;color:var(--muted)}.tog label{margin-left:10px;cursor:pointer}
+@media(max-width:980px){.row,.row3,.row2{grid-template-columns:1fr}.ctl .lbl{min-width:0}}
+</style></head><body>
+
+<div class="top"><div class="in">
+  <div class="brand">IV Surface Dashboard</div>
+  <div class="seg" role="group" aria-label="Dataset">
+    <button id="ds-SPY" aria-pressed="true">SPY live snapshot</button>
+    <button id="ds-SYNTHETIC" aria-pressed="false">Synthetic (known truth)</button>
+  </div>
+  <div class="nav"><a href="index.html">Report</a><a href="surface.html">Full 3D</a></div>
+</div></div>
+
+<main id="app"><div class="msg">Loading data&hellip;</div></main>
+
+<script src="assets/plotly.min.js"></script>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const COL = {ink:"#111827", muted:"#6b7280", accent:"#2563eb", put:"#b45309", call:"#0369a1", warn:"#dc2626", ok:"#059669", grid:"#e5e7eb", truth:"#9ca3af"};
+const FONT = {family:'-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif', size:12, color:"#374151"};
+const CFG = {responsive:true, displaylogo:false, modeBarButtonsToRemove:["lasso2d","select2d"]};
+const f = (x, d = 2) => Number(x).toFixed(d);
+const lin = (a, b, n) => Array.from({length:n}, (_, i) => a + (b - a) * i / (n - 1));
+
+function L(o = {}) {                      // layout with sensible defaults, axes merged
+  const ax = (x = {}) => ({gridcolor:COL.grid, zeroline:false, linecolor:COL.grid, ...x});
+  return {margin:{l:54, r:14, t:14, b:44}, font:FONT, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
+          hovermode:"closest", legend:{orientation:"h", y:1.14, x:0}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
+}
+
+/* ---------- SVI maths (mirrors ivsurface/svi.py and surface.py) ---------- */
+const S = {
+  w:   (p, k) => { const x = k - p.m; return p.a + p.b * (p.rho * x + Math.sqrt(x * x + p.sigma * p.sigma)); },
+  dw:  (p, k) => { const x = k - p.m; return p.b * (p.rho + x / Math.sqrt(x * x + p.sigma * p.sigma)); },
+  d2w: (p, k) => { const x = k - p.m, s2 = x * x + p.sigma * p.sigma; return p.b * p.sigma * p.sigma / Math.pow(s2, 1.5); },
+  g:   (p, k) => { const w = Math.max(S.w(p, k), 1e-12), wp = S.dw(p, k), wpp = S.d2w(p, k);
+                   return Math.pow(1 - k * wp / (2 * w), 2) - wp * wp / 4 * (1 / w + 0.25) + wpp / 2; },
+};
+const ivOf = (p, k, T) => Math.sqrt(Math.max(S.w(p, k), 1e-12) / T);
+
+let D = null, idx = 0, xmode = "k", cache = {}, sandbox = null;
+const slices = () => D.slices;
+
+function wAt(k, T) {                      // linear in T at fixed k; scaled before first slice
+  const s = slices();
+  if (T <= s[0].T) return S.w(s[0], k) * T / s[0].T;
+  for (let j = 1; j < s.length; j++) if (T <= s[j].T + 1e-12) {
+    const lam = (T - s[j - 1].T) / (s[j].T - s[j - 1].T);
+    return (1 - lam) * S.w(s[j - 1], k) + lam * S.w(s[j], k);
+  }
+  return NaN;
+}
+function rangeAt(T) {                     // observed strike range, interpolated in T
+  const s = slices(), Ts = s.map(x => x.T);
+  const interp = key => { if (T <= Ts[0]) return s[0][key]; if (T >= Ts[Ts.length - 1]) return s[s.length - 1][key];
+    let j = 1; while (Ts[j] < T) j++; const lam = (T - Ts[j - 1]) / (Ts[j] - Ts[j - 1]); return (1 - lam) * s[j - 1][key] + lam * s[j][key]; };
+  return [interp("k_min"), interp("k_max")];
+}
+const pct = (arr, q) => { const a = [...arr].sort((x, y) => x - y); return a[Math.floor(q * (a.length - 1))]; };
+const atmVol = s => ivOf(s, 0, s.T) * 100;
+const atmSkew = s => S.dw(s, 0) / (2 * Math.sqrt(Math.max(S.w(s, 0), 1e-12) * s.T));
+
+/* ---------- page skeleton ---------- */
+function build() {
+  $("#app").innerHTML = `
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><div class="ctl">
+    <div class="lbl" id="elabel"></div>
+    <input id="eslider" type="range" min="0" max="0" step="1" aria-label="Expiry">
+  </div></div>
+  <div class="row">
+    <div class="card"><h2>Volatility smile</h2>
+      <p class="sub">Out-of-the-money market quotes against the fitted SVI. The red dashed line is the flat vol Black-Scholes assumes.
+      <span class="tog">x-axis: <label><input type="radio" name="xm" value="k" checked> ln(K/F)</label><label><input type="radio" name="xm" value="K"> strike</label></span></p>
+      <div id="smile" class="plot" style="height:400px"></div></div>
+    <div>
+      <div class="card"><h2>Fit residuals</h2><p class="sub">Fitted minus market IV, in vol points.</p><div id="resid" class="plot" style="height:150px"></div></div>
+      <div class="card"><h2>Risk-neutral density check <span id="gchip"></span></h2>
+        <p class="sub">Gatheral's g(k) must stay &ge; 0. Shaded band = observed strikes.</p><div id="dens" class="plot" style="height:150px"></div></div>
+    </div>
+  </div>
+  <div class="card"><h2>Implied volatility surface</h2>
+    <p class="sub">Drag to rotate. Black line = selected expiry; dots = market quotes. Strikes beyond the observed range are masked, not extrapolated.</p>
+    <div id="surf" class="plot" style="height:560px"></div></div>
+  <div class="row3">
+    <div class="card"><h2>ATM term structure</h2><p class="sub">At-the-money implied vol vs maturity.</p><div id="term" class="plot" style="height:260px"></div></div>
+    <div class="card"><h2>ATM skew</h2><p class="sub">dIV/dk at the money; negative means puts are richer.</p><div id="skew" class="plot" style="height:260px"></div></div>
+    <div class="card"><h2>Calendar check</h2><p class="sub">Total variance w(k) of each expiry. Curves must not cross downward.</p><div id="cal" class="plot" style="height:260px"></div></div>
+  </div>
+  <div class="card"><h2>SVI sandbox</h2>
+    <p class="sub">Drag the five raw-SVI parameters for the selected expiry. Push <i>b</i> up or <i>&sigma;</i> down and watch the density go negative: that is butterfly arbitrage.</p>
+    <div class="row2"><div>
+      <div id="sbctl"></div>
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="btn" id="sbreset">Reset to fitted values</button>
+        <span id="sbstat"></span></div>
+    </div>
+    <div><div id="sbsmile" class="plot" style="height:230px"></div><div id="sbdens" class="plot" style="height:150px"></div></div></div>
+  </div>
+  <div class="row2">
+    <div class="card"><h2>Data quality</h2><p class="sub">Why contracts were dropped. "not otm" is intentional: each strike keeps only its out-of-the-money leg.</p>
+      <div id="filt" class="plot" style="height:300px"></div></div>
+    <div class="card"><h2>Per-expiry fit audit</h2><p class="sub">Click a row to select that expiry.</p><div class="tw" id="tbl"></div></div>
+  </div>
+  <div class="card" id="crosscard" style="display:none"><h2>Cross-check against svi-py</h2>
+    <p class="sub">Same cleaned quotes and forwards. Default = svi-py's out-of-the-box objective (total-variance error); tuned = its implied-vol objective with multi-start.</p>
+    <div class="tw" id="crosstbl"></div></div>`;
+  $("#eslider").addEventListener("input", e => { idx = +e.target.value; renderSelected(); });
+  document.querySelectorAll('input[name=xm]').forEach(r => r.addEventListener("change", e => { xmode = e.target.value; renderSmile(); }));
+  $("#sbreset").addEventListener("click", () => { initSandbox(); renderSandbox(); });
+}
+
+/* ---------- renderers ---------- */
+function renderKpis() {
+  const s = slices(), meanR = s.reduce((a, x) => a + x.rmse, 0) / s.length;
+  const bad = s.filter(x => !x.butterfly_ok || !x.calendar_ok).length;
+  let last = ["ATM IV range", `${f(Math.min(...s.map(atmVol)), 1)}–${f(Math.max(...s.map(atmVol)), 1)}%`];
+  if (s[0].truth) {
+    let mx = 0; s.forEach(x => x.truth.k.forEach((k, i) => { mx = Math.max(mx, Math.abs(ivOf(x, k, x.T) - x.truth.iv[i]) * 100); }));
+    last = ["max error vs true surface", `${f(mx, 2)} pts`];
+  }
+  $("#kpis").innerHTML = [
+    [`${D.n_kept.toLocaleString()} / ${D.n_raw.toLocaleString()}`, "contracts kept after cleaning"],
+    [s.length, `expiries fitted (${f(s[0].days, 0)}–${f(s[s.length - 1].days, 0)} days)`],
+    [`${f(meanR, 2)} pts`, "mean fit error on market quotes"],
+    [bad === 0 ? "0" : bad, "slices with butterfly/calendar arbitrage"],
+    [last[1], last[0]],
+    [D.spot.toLocaleString(undefined, {maximumFractionDigits: 2}), `spot, as of ${D.asof.slice(0, 10)}`]
+  ].map(([b, t]) => `<div class="kpi"><b>${b}</b><span>${t}</span></div>`).join("");
+}
+
+function renderSmile() {
+  const s = slices()[idx], q = s.q, X = k => xmode === "k" ? k : s.F * Math.exp(k);
+  const pts = type => { const ix = q.type.map((t, i) => t === type ? i : -1).filter(i => i >= 0);
+    return {x: ix.map(i => X(q.k[i])), y: ix.map(i => q.iv[i] * 100),
+            text: ix.map(i => `${type === "P" ? "Put" : "Call"} K=${q.K[i]}<br>bid ${q.bid[i]} / ask ${q.ask[i]}`)}; };
+  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 240), atm = atmVol(s);
+  const tr = [
+    {...pts("P"), name:"market puts", mode:"markers", marker:{size:5, color:COL.put}, hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"},
+    {...pts("C"), name:"market calls", mode:"markers", marker:{size:5, color:COL.call}, hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"},
+  ];
+  if (s.truth) tr.push({x:s.truth.k.map(X), y:s.truth.iv.map(v => v * 100), name:"true surface", mode:"lines", line:{color:COL.truth, width:6}, opacity:.55, hoverinfo:"skip"});
+  tr.push({x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:"SVI fit", mode:"lines", line:{color:COL.accent, width:2.2}, hovertemplate:"fit %{y:.2f}%<extra></extra>"});
+  tr.push({x:[X(kk[0]), X(kk[kk.length - 1])], y:[atm, atm], name:"flat vol (Black-Scholes)", mode:"lines", line:{color:COL.warn, dash:"dash", width:1.4}, hoverinfo:"skip"});
+  Plotly.react("smile", tr, L({xaxis:{title:xmode === "k" ? "ln(K/F)" : "strike"}, yaxis:{title:"implied vol (%)"}}), CFG);
+}
+
+function renderResid() {
+  const s = slices()[idx], q = s.q;
+  const y = q.k.map((k, i) => (ivOf(s, k, s.T) - q.iv[i]) * 100);
+  Plotly.react("resid", [{x:q.k, y, mode:"markers", marker:{size:4, color:q.type.map(t => t === "P" ? COL.put : COL.call)}, hovertemplate:"k=%{x:.3f}<br>%{y:+.3f} pts<extra></extra>"}],
+    L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"vol pts"}, showlegend:false,
+       shapes:[{type:"line", x0:s.k_min, x1:s.k_max, y0:0, y1:0, line:{color:COL.muted, width:1}}]}), CFG);
+}
+
+function densityTrace(p, s, color) {
+  const kk = lin(s.k_min - 0.1, s.k_max + 0.1, 220), g = kk.map(k => S.g(p, k));
+  return {kk, g, min: Math.min(...g), tr: {x:kk, y:g, mode:"lines", line:{color, width:2}, fill:"tozeroy", fillcolor:"rgba(37,99,235,.07)", hovertemplate:"k=%{x:.3f}<br>g=%{y:.3f}<extra></extra>"}};
+}
+function densLayout(s) {
+  return L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:false,
+    shapes:[{type:"rect", xref:"x", yref:"paper", x0:s.k_min, x1:s.k_max, y0:0, y1:1, fillcolor:"rgba(37,99,235,.06)", line:{width:0}, layer:"below"},
+            {type:"line", x0:s.k_min - 0.1, x1:s.k_max + 0.1, y0:0, y1:0, line:{color:COL.warn, width:1, dash:"dot"}}]});
+}
+function renderDensity() {
+  const s = slices()[idx], d = densityTrace(s, s, COL.accent);
+  Plotly.react("dens", [d.tr], densLayout(s), CFG);
+  $("#gchip").innerHTML = d.min >= -1e-6 ? '<span class="chip ok">no arbitrage</span>' : '<span class="chip bad">negative density</span>';
+}
+
+function renderSurface() {
+  const s = slices(), ks = s.flatMap(x => [x.k_min, x.k_max]);
+  const k = lin(pct(ks, .1), pct(ks, .9), 90), T = lin(s[0].T, s[s.length - 1].T, 56);
+  const z = T.map(t => { const [lo, hi] = rangeAt(t); return k.map(kv => (kv < lo || kv > hi) ? null : Math.sqrt(Math.max(wAt(kv, t), 0) / t) * 100); });
+  const sel = s[idx], kk = lin(sel.k_min, sel.k_max, 80);
+  const pts = {x:[], y:[], z:[]}; s.forEach(x => x.q.k.forEach((kv, i) => { pts.x.push(kv); pts.y.push(x.days); pts.z.push(x.q.iv[i] * 100); }));
+  Plotly.react("surf", [
+    {type:"surface", x:k, y:T.map(t => t * 365), z, colorscale:"Viridis", opacity:.93, colorbar:{title:"IV %", len:.6, thickness:14},
+     hovertemplate:"ln(K/F) %{x:.3f}<br>%{y:.0f} days<br>IV %{z:.1f}%<extra></extra>"},
+    {type:"scatter3d", mode:"markers", x:pts.x, y:pts.y, z:pts.z, marker:{size:1.8, color:"#111827"}, name:"quotes", hoverinfo:"skip"},
+    {type:"scatter3d", mode:"lines", x:kk, y:kk.map(() => sel.days), z:kk.map(v => ivOf(sel, v, sel.T) * 100), line:{color:"#dc2626", width:7}, name:"selected", hoverinfo:"skip"},
+  ], {margin:{l:0, r:0, t:0, b:0}, font:FONT, paper_bgcolor:"rgba(0,0,0,0)", showlegend:false,
+      scene:{xaxis:{title:"ln(K/F)"}, yaxis:{title:"days to expiry"}, zaxis:{title:"IV (%)"}, camera:{eye:{x:1.65, y:-1.65, z:.85}}}}, CFG);
+}
+
+function renderTerm() {
+  const s = slices(), d = s.map(x => x.days), cur = s[idx];
+  const mk = (y, c, ttl) => [{x:d, y, mode:"lines+markers", line:{color:c, width:2}, marker:{size:5}, hovertemplate:"%{x:.0f}d: %{y:.3f}<extra></extra>"},
+    {x:[cur.days], y:[y[idx]], mode:"markers", marker:{size:11, color:"rgba(0,0,0,0)", line:{color:COL.ink, width:2}}, hoverinfo:"skip"}];
+  Plotly.react("term", mk(s.map(atmVol), COL.accent), L({xaxis:{title:"days to expiry"}, yaxis:{title:"ATM IV (%)"}, showlegend:false}), CFG);
+  Plotly.react("skew", mk(s.map(atmSkew), COL.warn), L({xaxis:{title:"days to expiry"}, yaxis:{title:"dIV / d ln(K/F)"}, showlegend:false}), CFG);
+}
+
+function renderCalendar() {
+  const s = slices(), n = s.length;
+  const tr = s.map((x, i) => { const kk = lin(x.k_min, x.k_max, 80), on = i === idx;
+    const h = 220 - 190 * i / Math.max(n - 1, 1);
+    return {x:kk, y:kk.map(k => S.w(x, k)), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:`hsl(${h},65%,${on ? 38 : 55}%)`, width:on ? 3.4 : 1.3},
+            opacity:on ? 1 : .8, hovertemplate:`${f(x.days, 0)}d: w=%{y:.4f}<extra></extra>`}; });
+  Plotly.react("cal", tr, L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"total variance w"}, showlegend:false}), CFG);
+}
+
+function renderTables() {
+  const s = slices();
+  $("#tbl").innerHTML = `<table><thead><tr><th>Expiry</th><th>Days</th><th>Quotes</th><th>RMSE</th><th>Max err</th><th>min g</th><th>Butterfly</th><th>Calendar</th></tr></thead><tbody>` +
+    s.map((x, i) => `<tr data-i="${i}" class="${i === idx ? "sel" : ""}"><td>${x.expiry}</td><td>${f(x.days, 0)}</td><td>${x.n}</td><td>${f(x.rmse, 3)}</td><td>${f(x.max_err, 2)}</td><td>${f(x.min_g, 3)}</td>` +
+      `<td><span class="chip ${x.butterfly_ok ? "ok" : "bad"}">${x.butterfly_ok ? "ok" : "arb"}</span></td><td><span class="chip ${x.calendar_ok ? "ok" : "bad"}">${x.calendar_ok ? "ok" : "arb"}</span></td></tr>`).join("") + `</tbody></table>`;
+  document.querySelectorAll("#tbl tr[data-i]").forEach(r => r.addEventListener("click", () => { idx = +r.dataset.i; $("#eslider").value = idx; renderSelected(); }));
+}
+function renderFilters() {
+  const r = D.filters.filter(x => x.reason !== "ok" && x.rows > 0).sort((a, b) => a.rows - b.rows);
+  Plotly.react("filt", [{type:"bar", orientation:"h", y:r.map(x => x.reason.replace(/_/g, " ")), x:r.map(x => x.rows), marker:{color:COL.muted}, text:r.map(x => x.rows), textposition:"outside", hoverinfo:"skip"}],
+    L({margin:{l:90, r:30, t:6, b:36}, xaxis:{title:"rows"}, showlegend:false}), CFG);
+  const c = D.cross; if (!c) { $("#crosscard").style.display = "none"; return; }
+  $("#crosscard").style.display = "";
+  $("#crosstbl").innerHTML = `<table><thead><tr><th>Calibrator</th><th>Mean RMSE (pts)</th><th>Worst err (pts)</th><th>Slices w/ butterfly arb</th><th>Calendar violations</th><th>Gap vs mine (pts)</th></tr></thead><tbody>` +
+    c.map(x => `<tr><td>${x.name}</td><td>${f(x.mean_rmse)}</td><td>${f(x.worst_max_err)}</td><td>${x.slices_with_butterfly_arb}</td><td>${x.calendar_violations}</td><td>${f(x.curve_diff_vs_mine)}</td></tr>`).join("") + `</tbody></table>`;
+}
+
+/* ---------- sandbox ---------- */
+const SB = [["a", "a"], ["b", "b"], ["rho", "ρ"], ["m", "m"], ["sigma", "σ"]];
+function sbRange(key, s) {
+  const wmax = Math.max(...s.q.iv.map(v => v * v * s.T));
+  return {a:[-wmax, wmax], b:[0, Math.max(3 * s.b, 0.05)], rho:[-0.99, 0.99], m:[s.k_min - 0.3, s.k_max + 0.3], sigma:[0.005, 1.0]}[key];
+}
+function initSandbox() {
+  const s = slices()[idx]; sandbox = {a:s.a, b:s.b, rho:s.rho, m:s.m, sigma:s.sigma};
+  $("#sbctl").innerHTML = SB.map(([k, sym]) => { const [lo, hi] = sbRange(k, s);
+    return `<div class="sl"><label for="sb-${k}"><i>${sym}</i></label><input id="sb-${k}" type="range" min="${lo}" max="${hi}" step="${(hi - lo) / 400}" value="${sandbox[k]}"><output id="sbo-${k}"></output></div>`; }).join("");
+  SB.forEach(([k]) => $("#sb-" + k).addEventListener("input", e => { sandbox[k] = +e.target.value; renderSandbox(); }));
+}
+function renderSandbox() {
+  const s = slices()[idx], p = sandbox, q = s.q;
+  SB.forEach(([k]) => { $("#sbo-" + k).textContent = f(p[k], k === "a" ? 4 : 3); });
+  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 200);
+  const rmse = Math.sqrt(q.k.reduce((a, k, i) => a + Math.pow(ivOf(p, k, s.T) - q.iv[i], 2), 0) / q.k.length) * 100;
+  const d = densityTrace(p, s, COL.accent), okB = d.min >= -1e-6;
+  const prev = idx > 0 ? slices()[idx - 1] : null; let okC = true;
+  if (prev) { const lo = Math.max(prev.k_min, s.k_min) - 0.05, hi = Math.min(prev.k_max, s.k_max) + 0.05;
+    if (lo < hi) okC = lin(lo, hi, 61).every(k => S.w(p, k) - S.w(prev, k) >= -1e-9); }
+  const minW = Math.min(...kk.map(k => S.w(p, k)));
+  $("#sbstat").innerHTML = `<span class="chip ${okB ? "ok" : "bad"}">${okB ? "no butterfly arb" : "butterfly arbitrage"}</span> <span class="chip ${okC ? "ok" : "bad"}">${okC ? "calendar ok" : "calendar violated"}</span>` +
+    (minW < 0 ? ' <span class="chip bad">negative variance</span>' : "") + ` <span style="color:var(--muted);font-size:13px">RMSE ${f(rmse, 2)} pts</span>`;
+  Plotly.react("sbsmile", [
+    {x:q.k, y:q.iv.map(v => v * 100), mode:"markers", marker:{size:4, color:COL.muted}, name:"market", hoverinfo:"skip"},
+    {x:kk, y:kk.map(k => ivOf(s, k, s.T) * 100), mode:"lines", line:{color:COL.muted, dash:"dot", width:1.5}, name:"fitted", hoverinfo:"skip"},
+    {x:kk, y:kk.map(k => ivOf(p, k, s.T) * 100), mode:"lines", line:{color:COL.accent, width:2.2}, name:"sandbox", hoverinfo:"skip"}],
+    L({margin:{l:54, r:14, t:6, b:36}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"IV (%)"}, legend:{orientation:"h", y:1.2}}), CFG);
+  const dl = densLayout(s); dl.shapes[1].y1 = 0;
+  Plotly.react("sbdens", [{...d.tr, line:{color:okB ? COL.accent : COL.warn, width:2}, fillcolor:okB ? "rgba(37,99,235,.07)" : "rgba(220,38,38,.12)"}], dl, CFG);
+}
+
+function renderSelected() {
+  const s = slices()[idx];
+  $("#elabel").innerHTML = `${s.expiry} &middot; ${f(s.days, 0)} days <span style="color:var(--muted);font-weight:400">&middot; F ${f(s.F, 2)} &middot; ${s.n} quotes &middot; RMSE ${f(s.rmse, 2)} pts</span>`;
+  renderSmile(); renderResid(); renderDensity(); renderSurface(); renderTerm(); renderCalendar(); renderTables();
+  initSandbox(); renderSandbox();
+  history.replaceState(null, "", `#${D.label}/${idx}`);
+}
+
+/* ---------- loading ---------- */
+async function load(label, keepIdx) {
+  document.querySelectorAll(".seg button").forEach(b => b.setAttribute("aria-pressed", b.id === "ds-" + label));
+  try {
+    if (!cache[label]) { const r = await fetch(`data/${label}.json`); if (!r.ok) throw new Error(r.status); cache[label] = await r.json(); }
+  } catch (e) {
+    $("#app").innerHTML = `<div class="msg">Could not load <code>data/${label}.json</code>. Browsers block <code>fetch</code> on <code>file://</code>; serve this folder over HTTP:<br><code>python -m http.server</code> in <code>docs/</code>, or open the GitHub Pages URL.</div>`;
+    return;
+  }
+  D = cache[label]; idx = Math.min(keepIdx ?? Math.floor(D.slices.length / 2), D.slices.length - 1);
+  build(); renderKpis(); renderFilters();
+  const sl = $("#eslider"); sl.max = D.slices.length - 1; sl.value = idx;
+  renderSelected();
+}
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => load(b.id.slice(3))));
+const h = location.hash.slice(1).split("/");
+load(["SPY", "SYNTHETIC"].includes(h[0]) ? h[0] : "SPY", h[1] !== undefined && !isNaN(+h[1]) ? +h[1] : undefined);
+</script>
+</body></html>
