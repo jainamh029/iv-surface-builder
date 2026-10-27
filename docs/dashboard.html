@@ -1,250 +1,283 @@
 <!doctype html>
-<html lang="en" data-theme="light"><head><meta charset="utf-8">
+<html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>IV Surface Dashboard</title>
-<meta name="description" content="Interactive implied volatility surface dashboard: smiles, 3D surface and skew, no-arbitrage checks, an SVI sandbox and a surface query tool.">
-<script>try{var t=localStorage.getItem("ivd-theme");if(!t&&matchMedia("(prefers-color-scheme: dark)").matches)t="dark";if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<title>IV Surface Terminal</title>
+<meta name="description" content="Interactive implied volatility terminal: free-spin 3D surface and skew, no-arbitrage checks, SVI sandbox and a surface query tool.">
+<script>try{var t=localStorage.getItem("ivd-theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
 <style>
-:root{
-  --bg:#f3f5f9;--surface:#fff;--surface2:#f8fafc;--line:#e2e8f0;--ink:#0f172a;--ink2:#334155;--muted:#64748b;
-  --accent:#2f5bd9;--accent-soft:#e8eefc;--accent2:#0e8fa0;--put:#d9822b;--call:#0e8fa0;--warn:#e0475b;--ok:#0f9d6e;
-  --ok-soft:#d8f5ea;--bad-soft:#fde4e8;--shadow:0 1px 2px rgba(15,23,42,.04),0 4px 14px rgba(15,23,42,.05);
-  --hero:linear-gradient(135deg,#0f1f4d 0%,#1d3a8a 55%,#0e8fa0 130%);
-}
-[data-theme=dark]{
-  --bg:#0a1020;--surface:#111a2e;--surface2:#0e1628;--line:#223052;--ink:#e8eefb;--ink2:#c4cee3;--muted:#8a9bbd;
-  --accent:#7a9bff;--accent-soft:#1a2748;--accent2:#35d0c0;--put:#f2a65a;--call:#35d0c0;--warn:#ff7388;--ok:#38d39f;
-  --ok-soft:#0f3a30;--bad-soft:#4a1c28;--shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
-  --hero:linear-gradient(135deg,#0a1230 0%,#142a66 60%,#0b6f7c 140%);
-}
+@font-face{font-family:"Fira Sans";font-weight:400;font-display:swap;src:url(assets/fonts/fira-sans-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Fira Sans";font-weight:500;font-display:swap;src:url(assets/fonts/fira-sans-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Fira Sans";font-weight:600;font-display:swap;src:url(assets/fonts/fira-sans-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Fira Code";font-weight:300 700;font-display:swap;src:url(assets/fonts/fira-code-latin-wght-normal.woff2) format("woff2")}
+:root{--sans:"Fira Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Fira Code",ui-monospace,SFMono-Regular,Menlo,monospace}
+/* Obsidian & Gold (dark, default) */
+:root,[data-theme=dark]{
+  --bg:#05070d;--rail:#080b13;--panel:#0b101b;--panel2:#10172a;--line:#182033;--line2:#243049;
+  --ink:#e8edf7;--ink2:#b3bfd4;--muted:#74839e;--gold:#f5a524;--gold2:#ffc25c;--gold-soft:rgba(245,165,36,.13);
+  --violet:#9d8cff;--fit:#b9acff;--put:#f5a524;--call:#3fd0d8;--pos:#34d399;--neg:#fb7185;--pos-soft:rgba(52,211,153,.13);--neg-soft:rgba(251,113,133,.14);
+  --stage1:#101830;--stage2:#06080f;color-scheme:dark}
+/* Paper & Ink (light) */
+[data-theme=light]{
+  --bg:#efece3;--rail:#f7f4ec;--panel:#fdfbf6;--panel2:#f5f1e6;--line:#e2ddcc;--line2:#cfc8b2;
+  --ink:#14171f;--ink2:#394155;--muted:#697189;--gold:#b45f06;--gold2:#c97a14;--gold-soft:rgba(180,95,6,.11);
+  --violet:#5b46d6;--fit:#4a35c8;--put:#c06a00;--call:#0a7f8c;--pos:#0b8a5d;--neg:#c42f49;--pos-soft:rgba(11,138,93,.11);--neg-soft:rgba(196,47,73,.1);
+  --stage1:#fffdf7;--stage2:#ebe6d8;color-scheme:light}
 *{box-sizing:border-box}
-html{color-scheme:light}[data-theme=dark]{color-scheme:dark}
-body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
-a{color:var(--accent);text-decoration:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
 button,select,input{font:inherit;color:inherit}
-.in{max-width:1320px;margin:0 auto;padding:0 22px}
+a{color:var(--gold);text-decoration:none}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+.mono{font-family:var(--mono);font-feature-settings:"zero" 1}
 
-/* header */
-.top{background:var(--hero);color:#fff}
-.top .in{display:flex;gap:16px;align-items:center;padding-top:14px;padding-bottom:14px;flex-wrap:wrap}
-.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
-.logo{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.14);display:grid;place-items:center}
-.brand b{font-size:16px;letter-spacing:-.01em}.brand span{display:block;font-size:12px;opacity:.72;margin-top:-2px}
-.seg{display:inline-flex;background:rgba(255,255,255,.12);border-radius:9px;padding:3px;gap:2px}
-.seg button{border:0;background:transparent;color:rgba(255,255,255,.78);padding:5px 12px;border-radius:7px;font-weight:600;font-size:13px;cursor:pointer}
-.seg button[aria-pressed=true]{background:#fff;color:#0f1f4d}
-.top a,.top .ib{color:#fff;opacity:.85;font-size:13px;font-weight:600}
-.ib{background:rgba(255,255,255,.12);border:0;border-radius:8px;padding:6px 11px;cursor:pointer}
-.ib:hover,.top a:hover{opacity:1}
+/* shell */
+.app{display:grid;grid-template-columns:76px minmax(0,1fr);min-height:100vh}
+.rail{background:var(--rail);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px;z-index:40}
+.mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,var(--gold2),var(--gold) 55%,#b86a00);display:grid;place-items:center;margin-bottom:14px;box-shadow:0 6px 18px rgba(245,165,36,.25)}
+.mark svg{stroke:#1a1203}
+.nv{width:60px;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 0 8px;border-radius:11px;cursor:pointer;position:relative;font-size:10.5px;font-weight:500;letter-spacing:.02em}
+.nv svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nv:hover{color:var(--ink);background:var(--panel2)}
+.nv[aria-selected=true]{color:var(--gold);background:var(--gold-soft)}
+.nv[aria-selected=true]::before{content:"";position:absolute;left:-8px;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--gold)}
+.col{min-width:0;display:flex;flex-direction:column}
+.hdr{display:flex;align-items:center;gap:18px;padding:14px 26px;border-bottom:1px solid var(--line);background:var(--rail);flex-wrap:wrap}
+.tick{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.tick .sym{font:600 22px/1 var(--mono);letter-spacing:-.02em}
+.tick .px{font:500 18px/1 var(--mono);color:var(--gold)}
+.tick .meta{font-size:12px;color:var(--muted)}
+.hdr .sp{flex:1}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:none;color:var(--muted);padding:6px 13px;border-radius:7px;font-weight:500;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--ink)}.seg button[aria-pressed=true]{background:var(--gold);color:#1a1203;font-weight:600}
+.ib{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink2);cursor:pointer;display:grid;place-items:center}
+.ib:hover{border-color:var(--gold);color:var(--gold)}
+.ib svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.lnk{font-size:12.5px;font-weight:500;color:var(--ink2)}.lnk:hover{color:var(--gold)}
 
-/* controls */
-.ctrl{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
-.ctrl .in{display:flex;gap:14px;align-items:center;padding-top:10px;padding-bottom:10px;flex-wrap:wrap}
-.elabel{font-weight:700;font-size:15px;min-width:210px}.elabel small{display:block;font-weight:500;color:var(--muted);font-size:12px}
-.stepper{display:flex;gap:6px}.stepper .btn{font-size:16px;line-height:1;padding:5px 11px}.stepper .btn.pri{font-size:13px;line-height:1.5;padding:6px 14px}
-.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:8px;padding:6px 12px;font-weight:600;font-size:13px;cursor:pointer}
-.btn:hover{background:var(--surface2);border-color:var(--accent)}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}[data-theme=dark] .btn.pri{color:#0a1020}
-.btn.sm{padding:3px 9px;font-size:12px}
-#eslider{flex:1;min-width:180px;accent-color:var(--accent)}
-.seg2{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.seg2 button{border:0;background:var(--surface);color:var(--muted);padding:6px 11px;font-weight:600;font-size:12.5px;cursor:pointer}
-.seg2 button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent)}
-.pin{display:inline-flex;align-items:center;gap:6px;padding:2px 4px 2px 10px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid var(--line);margin-left:4px}
-.pin i{width:8px;height:8px;border-radius:50%;display:inline-block}
-.pin button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 5px}
+/* tenor bar */
+.tenor{display:flex;align-items:center;gap:14px;padding:10px 26px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+.tenor .lab{font-size:10.5px;letter-spacing:.14em;color:var(--muted);font-weight:600}
+.cur{min-width:178px}.cur b{display:block;font:600 14px/1.2 var(--mono)}.cur small{color:var(--muted);font-size:11.5px}
+.chips{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:240px;padding:2px;scrollbar-width:thin}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:5px 10px;cursor:pointer;text-align:center;min-width:54px}
+.chip b{display:block;font:600 13px/1.25 var(--mono)}.chip i{display:block;font-style:normal;font-size:10px;color:var(--muted)}
+.chip:hover{border-color:var(--line2)}
+.chip[aria-pressed=true]{background:var(--gold-soft);border-color:var(--gold);color:var(--gold2)}
+.chip.pinned::after{content:"";display:block;height:2px;border-radius:2px;margin-top:3px;background:var(--pc,var(--violet))}
+.btn{border:1px solid var(--line2);background:var(--panel2);color:var(--ink2);border-radius:8px;padding:6px 12px;font-weight:500;font-size:12.5px;cursor:pointer}
+.btn:hover{border-color:var(--gold);color:var(--ink)}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn.pri{background:var(--gold);border-color:var(--gold);color:#1a1203;font-weight:600;min-width:62px}
+.btn[aria-pressed=true]:not(.pri){background:var(--gold-soft);border-color:var(--gold);color:var(--gold2)}
+.step{display:flex;gap:6px}
+.step .btn{min-width:34px;padding:6px 9px}
+.xseg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.xseg button{border:0;background:var(--panel);color:var(--muted);padding:6px 11px;font:500 12px var(--mono);cursor:pointer}
+.xseg button[aria-pressed=true]{background:var(--panel2);color:var(--gold)}
 
-.t3d{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:6px 0 8px;font-size:12.5px;color:var(--muted)}
-.t3d .grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.t3d .hint{flex-basis:100%;font-size:12px;opacity:.9}
-.btn.sm[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
-.plot3d{cursor:grab}.plot3d:active{cursor:grabbing}
-/* tabs */
-.tabs{background:var(--surface);border-bottom:1px solid var(--line)}
-.tabs .in{display:flex;gap:4px;overflow-x:auto}
-.tabs button{border:0;background:none;padding:12px 16px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
-.tabs button:hover{color:var(--ink)}
-.tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
-
-main{max-width:1320px;margin:0 auto;padding:20px 22px 50px}
+main{padding:20px 26px 56px;max-width:1500px;width:100%}
 .tab{display:none}.tab.on{display:block}
-.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:var(--shadow)}
-.kpi b{display:block;font-size:22px;letter-spacing:-.02em;line-height:1.3}.kpi span{font-size:12px;color:var(--muted)}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:var(--shadow);min-width:0}
-.card h2{font-size:14.5px;margin:0;letter-spacing:-.005em;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.card .sub{font-size:12.5px;color:var(--muted);margin:2px 0 10px}
-.hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.tape{display:grid;grid-template-columns:repeat(6,1fr);background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:16px;overflow:hidden}
+.tape .k{padding:14px 18px;border-right:1px solid var(--line)}.tape .k:last-child{border-right:0}
+.tape .l{display:block;font-size:10.5px;letter-spacing:.12em;color:var(--muted);font-weight:600;text-transform:uppercase}
+.tape b{display:block;font:500 23px/1.35 var(--mono);letter-spacing:-.02em;margin-top:2px}
+.tape em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.tape .good{color:var(--pos)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:14px 18px 0}
+.ph h2{margin:0;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink2);font-weight:600;display:flex;gap:8px;align-items:center}
+.ph p{margin:3px 0 0;font-size:12.5px;color:var(--muted);max-width:640px}
+.pb{padding:8px 14px 14px}
 .g{display:grid;gap:16px;margin-bottom:16px}
-.g.c21{grid-template-columns:2fr 1fr}.g.c12{grid-template-columns:1fr 2fr}.g.c2{grid-template-columns:1fr 1fr}.g.c3{grid-template-columns:repeat(3,1fr)}.g.c31{grid-template-columns:3fr 1fr}
+.c21{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}.c2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.c31{grid-template-columns:minmax(0,3.1fr) minmax(0,1fr)}
 .stack{display:grid;gap:16px;align-content:start}
-.plot{width:100%}
-.chip{display:inline-block;padding:1px 9px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
-.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.bad{background:var(--bad-soft);color:var(--warn)}.chip.neu{background:var(--accent-soft);color:var(--accent)}
-.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
-.tools label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
-.tools select,.field input,.field select{background:var(--surface2);border:1px solid var(--line);border-radius:7px;padding:5px 8px;color:var(--ink)}
-.tools input[type=checkbox]{accent-color:var(--accent)}
-table{border-collapse:collapse;width:100%;font-size:13px}
-th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.tools label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.tools input[type=checkbox]{accent-color:var(--gold);width:14px;height:14px}
+select,.fld input{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:6px 9px;color:var(--ink);font-size:12.5px}
+select:hover,.fld input:hover{border-color:var(--gold)}
+.chipx{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.chipx.ok{background:var(--pos-soft);color:var(--pos)}.chipx.bad{background:var(--neg-soft);color:var(--neg)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:8px 11px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap;font-family:var(--mono)}
 th:first-child,td:first-child{text-align:left}
-th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--surface2);font-weight:600}
-tbody tr[data-i]{cursor:pointer}tbody tr[data-i]:hover{background:var(--surface2)}tbody tr.sel{background:var(--accent-soft)}
+th{font:600 10.5px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:var(--panel2)}
+tbody tr[data-i]{cursor:pointer}tbody tr[data-i]:hover{background:var(--panel2)}tbody tr.sel{background:var(--gold-soft)}
 .tw{overflow-x:auto}
-.dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:6px 0 0;font-size:13.5px}
-.dl dt{color:var(--muted)}.dl dd{margin:0;text-align:right;font-weight:600}
-.field{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center;margin:7px 0;font-size:13px;color:var(--muted)}
-.field input,.field select{width:100%}
-.sl{display:grid;grid-template-columns:34px 1fr 64px;gap:10px;align-items:center;margin:7px 0;font-size:13.5px}
-.sl input{accent-color:var(--accent);width:100%}.sl output{text-align:right;color:var(--muted)}
-.empty{color:var(--muted);font-size:13px;padding:6px 0}
-.msg{padding:60px 20px;text-align:center;color:var(--muted)}
-code{background:var(--surface2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:12.5px}
-.foot{color:var(--muted);font-size:12.5px;text-align:center;padding:10px 0 0}
-@media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.g.c21,.g.c12,.g.c3,.g.c31{grid-template-columns:1fr}}
-@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}.g.c2{grid-template-columns:1fr}.elabel{min-width:0}.in{padding:0 14px}main{padding:14px 14px 40px}}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;margin:6px 0 0;font-size:13px}.dl dt{color:var(--muted)}.dl dd{margin:0;text-align:right;font:500 13px var(--mono)}
+.fld{display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:center;margin:8px 0;color:var(--muted);font-size:12.5px}.fld input,.fld select{width:100%;font-family:var(--mono)}
+.sl{display:grid;grid-template-columns:30px 1fr 66px;gap:10px;align-items:center;margin:9px 0}
+.sl i{font-family:var(--mono);color:var(--gold)}.sl input{accent-color:var(--gold);width:100%}.sl output{text-align:right;font:12.5px var(--mono);color:var(--ink2)}
+.empty{color:var(--muted);font-size:13px;padding:2px 0}
+.msg{padding:80px 20px;text-align:center;color:var(--muted)}
+code{background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font:12px var(--mono)}
+.foot{color:var(--muted);font-size:12px;text-align:center;margin-top:8px}
+kbd{font:11px var(--mono);border:1px solid var(--line2);border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--ink2)}
+
+/* 3D stage */
+.stage{position:relative;height:clamp(480px,72vh,800px);margin:10px 14px 14px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:radial-gradient(130% 100% at 50% 0%,var(--stage1),var(--stage2));cursor:grab}
+.stage:focus-visible{outline-offset:-2px}
+.s3d-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.s3d-l{position:absolute;left:0;top:0;font:500 10.5px/1 var(--mono);color:var(--muted);white-space:nowrap;will-change:transform}
+.s3d-l.t{font:600 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.s3d-dot{position:absolute;left:0;top:0;width:13px;height:13px;border:2px solid var(--gold2);border-radius:50%;box-shadow:0 0 14px var(--gold);pointer-events:none;opacity:0}
+.s3d-tip{position:absolute;left:0;top:0;pointer-events:none;background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:9px 12px;opacity:0;min-width:156px;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:5}
+.s3d-tip b{display:block;font:600 17px/1.2 var(--mono);color:var(--gold)}.s3d-tip small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}.s3d-tip span{display:block;font:11.5px/1.5 var(--mono);color:var(--ink2)}
+.s3d-legend{position:absolute;right:16px;top:64px;bottom:86px;width:62px;display:flex;gap:7px;pointer-events:none}
+.s3d-legend .bar{width:9px;border-radius:5px;border:1px solid var(--line2)}
+.s3d-legend .ticks{position:relative;flex:1}.s3d-legend .ticks span{position:absolute;left:0;transform:translateY(50%);font:10.5px var(--mono);color:var(--muted)}
+.s3d-fail{display:grid;place-items:center;height:100%;color:var(--muted);padding:20px;text-align:center}
+.hint{position:absolute;left:14px;top:12px;font-size:11.5px;color:var(--muted);pointer-events:none;display:flex;gap:14px;flex-wrap:wrap;max-width:calc(100% - 100px)}
+.hint span b{font-weight:500;color:var(--ink2)}
+.hud{position:absolute;left:0;right:0;bottom:14px;margin:0 auto;width:max-content;max-width:calc(100% - 20px);display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center;
+  background:color-mix(in srgb,var(--panel) 80%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid var(--line2);border-radius:13px;padding:5px;z-index:4;cursor:default}
+.hud .grp{display:flex;gap:2px;padding:0 4px;border-right:1px solid var(--line)}.hud .grp:last-child{border-right:0}
+.hud button{border:0;background:none;color:var(--ink2);padding:6px 9px;border-radius:8px;font-weight:500;font-size:12px;cursor:pointer;white-space:nowrap}
+.hud button:hover{background:var(--panel2);color:var(--ink)}
+.hud button[aria-pressed=true]{background:var(--gold);color:#1a1203;font-weight:600}
+.hud .pip{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--muted);margin-right:6px;vertical-align:1px}
+.hud button[aria-pressed=true] .pip{background:#1a1203;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media(prefers-reduced-motion:reduce){.hud button[aria-pressed=true] .pip{animation:none}}
+
+@media(max-width:1180px){.tape{grid-template-columns:repeat(3,1fr)}.tape .k:nth-child(3){border-right:0}.tape .k{border-bottom:1px solid var(--line)}.c21,.c31{grid-template-columns:1fr}}
+@media(max-width:860px){.app{grid-template-columns:1fr}.rail{position:fixed;inset:auto 0 0 0;height:auto;flex-direction:row;justify-content:space-around;padding:6px 4px;border-right:0;border-top:1px solid var(--line)}
+  .mark{display:none}.nv{width:auto;flex:1;padding:6px 0}.nv[aria-selected=true]::before{left:25%;right:25%;top:-7px;bottom:auto;width:auto;height:3px;border-radius:0 0 3px 3px}
+  .hdr,.tenor,main{padding-left:14px;padding-right:14px}main{padding-bottom:90px}.c2{grid-template-columns:1fr}.tape{grid-template-columns:repeat(2,1fr)}.tape .k:nth-child(odd){border-right:1px solid var(--line)}.tape .k:nth-child(even){border-right:0}
+  .stage{height:62vh;margin:8px}.hint{display:none}.cur{min-width:0}}
 </style></head><body>
+<div class="app">
+<nav class="rail" role="tablist" aria-label="Sections">
+  <div class="mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-10 9-10s6 8 9 9"/><path d="M3 21h18"/></svg></div>
+  <button class="nv" role="tab" data-tab="overview" aria-selected="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Overview</button>
+  <button class="nv" role="tab" data-tab="surface" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg>Surface</button>
+  <button class="nv" role="tab" data-tab="skew" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M3 4v16h18"/><path d="M6 17c3-1 4-9 8-9s4 5 7 6"/></svg>Skew</button>
+  <button class="nv" role="tab" data-tab="arb" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.5 3.2 7.8 8 9 4.8-1.2 8-4.5 8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg>Arbitrage</button>
+  <button class="nv" role="tab" data-tab="sandbox" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Sandbox</button>
+  <button class="nv" role="tab" data-tab="data" aria-selected="false"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>Data</button>
+</nav>
 
-<header class="top"><div class="in">
-  <div class="brand"><div class="logo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3-1 4-9 9-9s6 8 9 9"/><path d="M3 21h18"/></svg></div>
-    <div><b>IV Surface Dashboard</b><span id="subtitle">Implied volatility, SVI calibration and no-arbitrage checks</span></div></div>
-  <div class="seg" role="group" aria-label="Dataset">
-    <button id="ds-SPY" aria-pressed="true">SPY snapshot</button>
-    <button id="ds-SYNTHETIC" aria-pressed="false">Synthetic (known truth)</button>
-  </div>
-  <a href="index.html">Report</a><a href="https://github.com/jainamh029/iv-surface-builder">GitHub</a>
-  <button class="ib" id="theme" aria-label="Toggle light and dark theme">Dark mode</button>
-</div></header>
+<div class="col">
+<header class="hdr">
+  <div class="tick"><span class="sym" id="sym">SPY</span><span class="px" id="px"></span><span class="meta" id="meta"></span></div>
+  <span class="sp"></span>
+  <div class="seg" role="group" aria-label="Dataset"><button id="ds-SPY" aria-pressed="true">Market snapshot</button><button id="ds-SYNTHETIC" aria-pressed="false">Synthetic truth</button></div>
+  <a class="lnk" href="index.html">Report</a><a class="lnk" href="https://github.com/jainamh029/iv-surface-builder">GitHub</a>
+  <button class="ib" id="theme" aria-label="Switch between dark and light theme"><svg viewBox="0 0 24 24" id="theme-ico"></svg></button>
+</header>
 
-<div class="ctrl"><div class="in">
-  <div class="elabel" id="elabel"></div>
-  <div class="stepper"><button class="btn" id="prev" title="Previous expiry (&larr;)">&lsaquo;</button><button class="btn pri" id="play" title="Play through expiries (Space)">&#9654; Play</button><button class="btn" id="next" title="Next expiry (&rarr;)">&rsaquo;</button></div>
-  <input id="eslider" type="range" min="0" max="0" step="1" aria-label="Expiry">
-  <div class="seg2" id="xseg" role="group" aria-label="Strike axis"><button data-x="k" aria-pressed="true">ln(K/F)</button><button data-x="m">K/F</button><button data-x="K">Strike</button></div>
-  <button class="btn" id="pin" title="Pin this expiry to compare">Pin to compare</button><span id="pins"></span>
-</div></div>
-
-<nav class="tabs"><div class="in" role="tablist">
-  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
-  <button role="tab" data-tab="surface" aria-selected="false">3D surface</button>
-  <button role="tab" data-tab="skew" aria-selected="false">3D skew</button>
-  <button role="tab" data-tab="arb" aria-selected="false">No-arbitrage</button>
-  <button role="tab" data-tab="sandbox" aria-selected="false">SVI sandbox</button>
-  <button role="tab" data-tab="data" aria-selected="false">Data &amp; audit</button>
-</div></nav>
+<div class="tenor">
+  <div class="cur"><span class="lab">TENOR</span><b id="cur-main"></b><small id="cur-sub"></small></div>
+  <div class="chips" id="chips" role="group" aria-label="Expiry"></div>
+  <div class="step"><button class="btn" id="prev" aria-label="Previous expiry">&#8249;</button><button class="btn pri" id="play" aria-label="Play through expiries">Play</button><button class="btn" id="next" aria-label="Next expiry">&#8250;</button></div>
+  <div class="xseg" id="xseg" role="group" aria-label="Strike axis"><button data-x="k" aria-pressed="true">ln(K/F)</button><button data-x="m">K/F</button><button data-x="K">Strike</button></div>
+  <button class="btn" id="pin">Pin</button>
+</div>
 
 <main>
 <div id="loading" class="msg">Loading data&hellip;</div>
 
 <section class="tab" id="tab-overview">
-  <div class="kpis" id="kpis"></div>
+  <div class="tape" id="kpis"></div>
   <div class="g c21">
-    <div class="card"><div class="hd"><div><h2>Volatility smile</h2>
-      <p class="sub" style="margin-bottom:0">Out-of-the-money quotes vs the fitted SVI. Click any point for contract detail.</p></div>
-      <div class="tools" id="smtools">
-        <label><input type="checkbox" data-s="puts" checked> puts</label><label><input type="checkbox" data-s="calls" checked> calls</label>
-        <label><input type="checkbox" data-s="fit" checked> SVI fit</label><label><input type="checkbox" data-s="flat" checked> flat vol</label>
-        <label id="truthlbl"><input type="checkbox" data-s="truth" checked> truth</label></div></div>
-      <div id="smile" class="plot" style="height:420px"></div></div>
+    <div class="panel"><div class="ph"><div><h2>Volatility smile</h2><p>Out-of-the-money quotes against the fitted SVI. Click any point for the contract.</p></div>
+      <div class="tools" id="smtools"><label><input type="checkbox" data-s="puts" checked> puts</label><label><input type="checkbox" data-s="calls" checked> calls</label><label><input type="checkbox" data-s="fit" checked> SVI fit</label><label><input type="checkbox" data-s="flat" checked> flat vol</label><label id="truthlbl"><input type="checkbox" data-s="truth" checked> truth</label></div></div>
+      <div class="pb"><div id="smile" style="height:410px"></div></div></div>
     <div class="stack">
-      <div class="card"><h2>Selected contract</h2><div id="detail" class="empty">Click a point on the smile.</div></div>
-      <div class="card"><h2>Fit residuals</h2><p class="sub">Fitted minus market IV (vol points).</p><div id="resid" class="plot" style="height:190px"></div></div>
+      <div class="panel"><div class="ph"><h2>Selected contract</h2></div><div class="pb" style="padding:6px 18px 16px"><div id="detail" class="empty">Click a point on the smile.</div></div></div>
+      <div class="panel"><div class="ph"><div><h2>Fit residuals</h2><p>Fitted minus market, vol points.</p></div></div><div class="pb"><div id="resid" style="height:190px"></div></div></div>
     </div>
   </div>
   <div class="g c2">
-    <div class="card"><div class="hd"><div><h2>Term structure</h2><p class="sub" style="margin-bottom:0">Click a point to select that expiry.</p></div>
-      <div class="tools"><select id="termmetric" aria-label="Term structure metric"><option value="atm">ATM implied vol</option><option value="skew">ATM skew</option><option value="w">ATM total variance</option><option value="F">Forward</option></select></div></div>
-      <div id="term" class="plot" style="height:300px"></div></div>
-    <div class="card"><h2>Pinned expiries</h2><p class="sub">Pin expiries with the button above to overlay their smiles, then compare shape and level.</p>
-      <div id="pinsmile" class="plot" style="height:300px"></div></div>
+    <div class="panel"><div class="ph"><div><h2>Term structure</h2><p>Click a point to select that tenor.</p></div><div class="tools"><select id="termmetric" aria-label="Term structure metric"><option value="atm">ATM implied vol</option><option value="skew">ATM skew</option><option value="w">ATM total variance</option><option value="F">Forward</option></select></div></div><div class="pb"><div id="term" style="height:290px"></div></div></div>
+    <div class="panel"><div class="ph"><div><h2>Pinned tenors</h2><p>Use Pin in the tenor bar to overlay smiles and compare level and shape.</p></div></div><div class="pb"><div id="pinsmile" style="height:290px"></div></div></div>
   </div>
 </section>
 
 <section class="tab" id="tab-surface">
   <div class="g c31">
-    <div class="card"><div class="hd"><div><h2>Implied volatility surface</h2><p class="sub" style="margin-bottom:0">Drag to rotate, scroll to zoom. Click the surface to query that point. Masked where there are no quotes.</p></div>
-      <div class="tools"><select id="smetric" aria-label="Surface metric"></select>
-        <label><input type="checkbox" id="s-pts" checked> quotes</label><label><input type="checkbox" id="s-rib" checked> expiry</label><label><input type="checkbox" id="s-mask" checked> mask extrapolation</label><button class="btn sm" id="dl-grid">Export grid CSV</button></div></div>
-      <div class="t3d" data-plot="surf"></div>
-      <div id="surf" class="plot" style="height:600px"></div></div>
-    <div class="stack">
-      <div class="card"><h2>Query the surface</h2><p class="sub">Strike and maturity in, volatility and Black-76 price out.</p>
-        <div class="field"><label for="q-days">Days</label><input id="q-days" type="number" step="1"></div>
-        <div class="field"><label for="q-K">Strike</label><input id="q-K" type="number" step="1"></div>
-        <div class="field"><label for="q-cp">Type</label><select id="q-cp"><option value="C">Call</option><option value="P">Put</option></select></div>
-        <dl class="dl" id="qout"></dl>
-        <div style="margin-top:12px"><button class="btn sm" id="q-sel">Use selected expiry</button></div></div>
-    </div>
+    <div class="panel"><div class="ph"><div><h2>Implied volatility surface</h2><p>Free-spin 3D. Hover to read a point, click to query it. The floor shows the same field as a heat-shadow with contours.</p></div>
+      <div class="tools"><select id="smetric" aria-label="Surface metric"></select><label><input type="checkbox" id="s-pts" checked> quotes</label><label><input type="checkbox" id="s-rib" checked> tenor</label><label><input type="checkbox" id="s-mask" checked> mask extrapolation</label><button class="btn sm" id="dl-grid">Export CSV</button></div></div>
+      <div class="stage" id="surf" aria-label="3D volatility surface. Arrow keys rotate, plus and minus zoom, zero resets."></div>
+      <div class="hudslot" data-for="surf"></div></div>
+    <div class="stack"><div class="panel"><div class="ph"><div><h2>Query the surface</h2><p>Strike and maturity in; volatility and Black-76 price out.</p></div></div><div class="pb" style="padding:8px 18px 18px">
+      <div class="fld"><label for="q-days">Days</label><input id="q-days" type="number" step="1"></div>
+      <div class="fld"><label for="q-K">Strike</label><input id="q-K" type="number" step="1"></div>
+      <div class="fld"><label for="q-cp">Type</label><select id="q-cp"><option value="C">Call</option><option value="P">Put</option></select></div>
+      <dl class="dl" id="qout"></dl><div style="margin-top:12px"><button class="btn sm" id="q-sel">Use selected tenor</button></div></div></div></div>
   </div>
 </section>
 
 <section class="tab" id="tab-skew">
   <div class="g c31">
-    <div class="card"><div class="hd"><div><h2>Skew surface</h2>
-      <p class="sub" style="margin-bottom:0">Local skew &part;IV/&part;k over strike and maturity. Blue = steep put skew, white = the smile's vertex, red = call-side upturn. Contours are projected on the floor.</p></div>
-      <div class="tools"><select id="kmetric" aria-label="Skew metric"><option value="skew">Local skew &part;IV/&part;k</option><option value="dwk">Variance slope &part;w/&part;k</option></select>
-        <label><input type="checkbox" id="k-rib" checked> expiry</label><label><input type="checkbox" id="k-atm" checked> ATM ridge</label></div></div>
-      <div class="t3d" data-plot="skew3d"></div>
-      <div id="skew3d" class="plot" style="height:620px"></div></div>
+    <div class="panel"><div class="ph"><div><h2>Skew surface</h2><p>Local skew &part;IV/&part;k over strike and maturity. Blue is steep put skew, pale is the smile's vertex, amber is the call-side upturn.</p></div>
+      <div class="tools"><select id="kmetric" aria-label="Skew metric"><option value="skew">Local skew &part;IV/&part;k</option><option value="dwk">Variance slope &part;w/&part;k</option></select><label><input type="checkbox" id="k-rib" checked> tenor</label><label><input type="checkbox" id="k-atm" checked> ATM ridge</label></div></div>
+      <div class="stage" id="skew3d" aria-label="3D skew surface. Arrow keys rotate, plus and minus zoom, zero resets."></div>
+      <div class="hudslot" data-for="skew3d"></div></div>
     <div class="stack">
-      <div class="card"><h2>Skew across strikes</h2><p class="sub">Selected expiry (pinned expiries overlaid).</p><div id="skewslice" class="plot" style="height:240px"></div></div>
-      <div class="card"><h2>ATM skew term structure</h2><p class="sub">Steepest at the front, flattening with maturity. Click to select.</p><div id="skewterm" class="plot" style="height:240px"></div></div>
+      <div class="panel"><div class="ph"><div><h2>Skew across strikes</h2><p>Selected tenor, pinned overlaid.</p></div></div><div class="pb"><div id="skewslice" style="height:230px"></div></div></div>
+      <div class="panel"><div class="ph"><div><h2>ATM skew term structure</h2><p>Click to select.</p></div></div><div class="pb"><div id="skewterm" style="height:230px"></div></div></div>
     </div>
   </div>
 </section>
 
 <section class="tab" id="tab-arb">
   <div class="g c2">
-    <div class="card"><h2>Risk-neutral density check <span id="gchip"></span></h2>
-      <p class="sub">Gatheral's g(k) must stay &ge; 0 for the density to be non-negative (no butterfly arbitrage). Shaded = observed strikes.</p><div id="dens" class="plot" style="height:300px"></div></div>
-    <div class="card"><h2>Calendar check</h2><p class="sub">Total variance w(k) of every expiry. Curves must not cross downward as maturity increases.</p><div id="cal" class="plot" style="height:300px"></div></div>
+    <div class="panel"><div class="ph"><div><h2>Risk-neutral density check <span id="gchip"></span></h2><p>Gatheral's g(k) must stay at or above zero (no butterfly arbitrage). Shaded band = observed strikes.</p></div></div><div class="pb"><div id="dens" style="height:290px"></div></div></div>
+    <div class="panel"><div class="ph"><div><h2>Calendar check</h2><p>Total variance of every tenor. Curves must not cross downward as maturity grows.</p></div></div><div class="pb"><div id="cal" style="height:290px"></div></div></div>
   </div>
   <div class="g c2">
-    <div class="card"><h2>g(k) heatmap</h2><p class="sub">Red would mark negative density. None appears inside the observed region.</p><div id="gheat" class="plot" style="height:320px"></div></div>
-    <div class="card"><h2>Minimum g per expiry</h2><p class="sub">Click a bar to select. All bars above zero means no butterfly arbitrage.</p><div id="ming" class="plot" style="height:320px"></div></div>
+    <div class="panel"><div class="ph"><div><h2>g(k) heatmap</h2><p>Red would mark negative density. None appears inside the observed region.</p></div></div><div class="pb"><div id="gheat" style="height:310px"></div></div></div>
+    <div class="panel"><div class="ph"><div><h2>Minimum g per tenor</h2><p>Click a bar to select. All bars above zero means no butterfly arbitrage.</p></div></div><div class="pb"><div id="ming" style="height:310px"></div></div></div>
   </div>
 </section>
 
 <section class="tab" id="tab-sandbox">
   <div class="g c2">
-    <div class="card"><div class="hd"><div><h2>SVI sandbox</h2><p class="sub" style="margin-bottom:0">Drag the five raw-SVI parameters of the selected expiry. Push <i>b</i> up or <i>&sigma;</i> down and watch the density go negative: that is butterfly arbitrage.</p></div></div>
-      <div id="sbctl"></div>
-      <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="sbreset">Reset to fitted values</button><span id="sbstat"></span></div>
-      <p class="sub" style="margin-top:14px">w(k) = a + b&middot;(&rho;&middot;(k&minus;m) + &radic;((k&minus;m)&sup2; + &sigma;&sup2;))</p></div>
-    <div class="stack"><div class="card"><h2>Smile</h2><div id="sbsmile" class="plot" style="height:280px"></div></div>
-      <div class="card"><h2>Density g(k)</h2><div id="sbdens" class="plot" style="height:200px"></div></div></div>
+    <div class="panel"><div class="ph"><div><h2>SVI sandbox</h2><p>Drag the five raw-SVI parameters of the selected tenor. Push <i>b</i> up or <i>&sigma;</i> down and watch the density go negative: that is butterfly arbitrage.</p></div></div>
+      <div class="pb" style="padding:6px 18px 18px"><div id="sbctl"></div><div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="sbreset">Reset to fitted</button><span id="sbstat"></span></div>
+      <p class="empty" style="margin-top:16px"><span class="mono">w(k) = a + b&middot;(&rho;&middot;(k&minus;m) + &radic;((k&minus;m)&sup2; + &sigma;&sup2;))</span></p></div></div>
+    <div class="stack"><div class="panel"><div class="ph"><h2>Smile</h2></div><div class="pb"><div id="sbsmile" style="height:270px"></div></div></div>
+      <div class="panel"><div class="ph"><h2>Density g(k)</h2></div><div class="pb"><div id="sbdens" style="height:190px"></div></div></div></div>
   </div>
 </section>
 
 <section class="tab" id="tab-data">
   <div class="g c2">
-    <div class="card"><h2>Data quality</h2><p class="sub">Why contracts were dropped. "not otm" is intentional: each strike keeps only its out-of-the-money leg.</p><div id="filt" class="plot" style="height:320px"></div></div>
-    <div class="card"><div class="hd"><div><h2>Per-expiry fit audit</h2><p class="sub" style="margin-bottom:0">Click a row to select.</p></div>
-      <div class="tools"><button class="btn sm" id="dl-par">Parameters CSV</button><button class="btn sm" id="dl-q">Selected quotes CSV</button></div></div>
-      <div class="tw" id="tbl"></div></div>
+    <div class="panel"><div class="ph"><div><h2>Data quality</h2><p>Why contracts were dropped. &ldquo;not otm&rdquo; is intentional: each strike keeps only its out-of-the-money leg.</p></div></div><div class="pb"><div id="filt" style="height:320px"></div></div></div>
+    <div class="panel"><div class="ph"><div><h2>Per-tenor fit audit</h2><p>Click a row to select.</p></div><div class="tools"><button class="btn sm" id="dl-par">Parameters CSV</button><button class="btn sm" id="dl-q">Tenor quotes CSV</button></div></div><div class="pb"><div class="tw" id="tbl"></div></div></div>
   </div>
-  <div class="card" id="crosscard"><h2>Cross-check against svi-py</h2>
-    <p class="sub">Same cleaned quotes and forwards. Default = svi-py's out-of-the-box objective (total-variance error); tuned = its implied-vol objective with multi-start.</p>
-    <div class="tw" id="crosstbl"></div></div>
+  <div class="panel" id="crosscard"><div class="ph"><div><h2>Cross-check against svi-py</h2><p>Same cleaned quotes and forwards. Default = svi-py's out-of-the-box objective; tuned = its implied-vol objective with multi-start.</p></div></div><div class="pb"><div class="tw" id="crosstbl"></div></div></div>
 </section>
-<div class="foot">Keyboard: &larr; &rarr; change expiry &middot; Space plays &middot; all charts are linked to the expiry slider.</div>
+<div class="foot"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> change tenor &middot; <kbd>Space</kbd> play &middot; in 3D: drag to spin, scroll to zoom, <kbd>Shift</kbd>-drag to pan, double-click to reset</div>
 </main>
+</div></div>
+
+<template id="hud-tpl"><div class="hint"><span><b>Drag</b> spin</span><span><b>Scroll</b> zoom</span><span><b>Shift-drag</b> pan</span><span><b>Double-click</b> reset</span></div>
+<div class="hud" role="toolbar" aria-label="3D controls">
+  <div class="grp" role="group" aria-label="Drag mode"><button data-mode="free" aria-pressed="true" title="Free spin: rotate in any direction">Free spin</button><button data-mode="turntable" aria-pressed="false" title="Turntable: keep the floor level">Turntable</button><button data-mode="pan" aria-pressed="false" title="Drag moves the scene">Pan</button></div>
+  <div class="grp"><button data-act="spin" aria-pressed="true" title="Slowly rotate when idle"><span class="pip"></span>Auto-spin</button></div>
+  <div class="grp"><button data-act="zin" aria-label="Zoom in">+</button><button data-act="zout" aria-label="Zoom out">&minus;</button></div>
+  <div class="grp"><button data-view="def">Default</button><button data-view="top">Top</button><button data-view="smile">Smile</button><button data-view="term">Term</button><button data-act="reset">Reset</button></div>
+</div></template>
 
 <script src="assets/plotly.min.js"></script>
+<script>window.s3dReady = new Promise(r => { window.__s3d = r; });</script>
+<script type="module">
+  try { const m = await import("./assets/surface3d.js"); window.Surface3D = m.Surface3D; window.__s3d(true); } catch (e) { console.error(e); window.__s3d(false); }
+</script>
 <script>
 "use strict";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const f = (x, d = 2) => Number(x).toFixed(d);
 const lin = (a, b, n) => Array.from({length: n}, (_, i) => a + (b - a) * i / (n - 1));
-const FONT = '-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif';
+const FONT = '"Fira Sans",system-ui,sans-serif';
 const CFG = {responsive:true, displaylogo:false, modeBarButtonsToRemove:["lasso2d","select2d"]};
-const SEQ = [[0,"#1b2a6b"],[.25,"#2f5bd9"],[.5,"#1aa3b5"],[.75,"#62d2a2"],[1,"#f4e7a6"]];
-const DIV = [[0,"#2147b8"],[.25,"#6f94f0"],[.5,"#eef2f8"],[.75,"#f0a0ab"],[1,"#d6334c"]];
-const GHEAT = [[0,"#e0475b"],[.2,"#eef2f8"],[1,"#0e8fa0"]];
-const PIN_HUES = [28, 280, 150, 330, 50];
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let C = {};
 function readTheme() {
   const cs = getComputedStyle(document.documentElement), g = n => cs.getPropertyValue(n).trim();
-  C = {ink:g("--ink"), ink2:g("--ink2"), muted:g("--muted"), line:g("--line"), surface:g("--surface"), accent:g("--accent"), put:g("--put"), call:g("--call"), warn:g("--warn"), ok:g("--ok")};
+  C = {ink:g("--ink"), ink2:g("--ink2"), muted:g("--muted"), line:g("--line"), line2:g("--line2"), panel:g("--panel"), panel2:g("--panel2"), gold:g("--gold"), gold2:g("--gold2"), violet:g("--violet"), fit:g("--fit"), put:g("--put"), call:g("--call"), pos:g("--pos"), neg:g("--neg"), dark:document.documentElement.dataset.theme !== "light"};
 }
 
 /* ---------------- maths (mirrors ivsurface/svi.py + surface.py) ---------------- */
@@ -261,11 +294,10 @@ const erf = x => { const s = Math.sign(x); x = Math.abs(x); const t = 1 / (1 + 0
 const Ncdf = x => 0.5 * (1 + erf(x / Math.SQRT2)), npdf = x => Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 
 let D = null, idx = 0, xmode = "k", active = "overview", pins = [], timer = null, detail = null, sandbox = null;
-const cache = {}, show = {puts:true, calls:true, fit:true, flat:true, truth:true};
-const query = {days:60, K:null, cp:"C"};
-const sl = () => D.slices;
+const cache = {}, show = {puts:true, calls:true, fit:true, flat:true, truth:true}, query = {days:60, K:null, cp:"C"};
+const sl = () => D.slices, sel = () => sl()[idx];
 
-function wDer(k, T) {                      // [w, dw/dk, d2w/dk2], linear in T at fixed k
+function wDer(k, T) {
   const s = sl();
   if (T <= s[0].T) { const q = T / s[0].T; return [S.w(s[0], k) * q, S.dw(s[0], k) * q, S.d2w(s[0], k) * q]; }
   for (let j = 1; j < s.length; j++) if (T <= s[j].T + 1e-12) {
@@ -284,77 +316,64 @@ const forward = T => { const s = sl(), Ts = s.map(x => x.T), lf = s.map(x => Mat
   if (T <= Ts[0]) return Math.exp(lf[0]); if (T >= Ts[Ts.length - 1]) return Math.exp(lf[lf.length - 1]);
   let j = 1; while (Ts[j] < T) j++; const l = (T - Ts[j - 1]) / (Ts[j] - Ts[j - 1]); return Math.exp((1 - l) * lf[j - 1] + l * lf[j]); };
 const METRICS = {
-  iv:   {name:"Implied vol (%)",         f:(k, T) => Math.sqrt(Math.max(wDer(k, T)[0], 0) / T) * 100},
-  w:    {name:"Total variance w",        f:(k, T) => wDer(k, T)[0]},
-  skew: {name:"Local skew dIV/dk",       f:(k, T) => { const [w, wp] = wDer(k, T); return wp / (2 * Math.sqrt(Math.max(w, 1e-12) * T)); }},
-  dwk:  {name:"Variance slope dw/dk",    f:(k, T) => wDer(k, T)[1]},
-  g:    {name:"Density factor g(k)",     f:(k, T) => { const [w0, wp, wpp] = wDer(k, T), w = Math.max(w0, 1e-12); return Math.pow(1 - k * wp / (2 * w), 2) - wp * wp / 4 * (1 / w + 0.25) + wpp / 2; }},
+  iv:   {name:"Implied vol", f:(k, T) => Math.sqrt(Math.max(wDer(k, T)[0], 0) / T) * 100, fmt:v => v.toFixed(0) + "%", tip:v => v.toFixed(2) + "%"},
+  w:    {name:"Total variance", f:(k, T) => wDer(k, T)[0], fmt:v => v.toFixed(3), tip:v => v.toFixed(4)},
+  skew: {name:"Local skew dIV/dk", f:(k, T) => { const [w, wp] = wDer(k, T); return wp / (2 * Math.sqrt(Math.max(w, 1e-12) * T)); }, fmt:v => v.toFixed(1), tip:v => v.toFixed(3)},
+  dwk:  {name:"Variance slope dw/dk", f:(k, T) => wDer(k, T)[1], fmt:v => v.toFixed(2), tip:v => v.toFixed(4)},
+  g:    {name:"Density factor g", f:(k, T) => { const [w0, wp, wpp] = wDer(k, T), w = Math.max(w0, 1e-12); return Math.pow(1 - k * wp / (2 * w), 2) - wp * wp / 4 * (1 / w + 0.25) + wpp / 2; }, fmt:v => v.toFixed(1), tip:v => v.toFixed(3)},
 };
 const isDiv = m => m === "skew" || m === "dwk";
 const atmVol = s => ivOf(s, 0, s.T) * 100;
 const atmSkew = s => S.dw(s, 0) / (2 * Math.sqrt(Math.max(S.w(s, 0), 1e-12) * s.T));
 const pct = (a, q) => { const b = [...a].sort((x, y) => x - y); return b[Math.floor(q * (b.length - 1))]; };
 const nearest = days => sl().reduce((b, s, i) => Math.abs(s.days - days) < Math.abs(sl()[b].days - days) ? i : b, 0);
-const dateStr = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", {day:"2-digit", month:"short", year:"numeric"});
+const shortDate = s => new Date(s + "T12:00:00").toLocaleDateString("en-GB", {day:"2-digit", month:"short"});
 
 function gridFor(metric, mask, ragged = false, nk = 96) {
-  // ragged: each maturity gets its own exact strike range (clean surface edges, no nulls).
   const key = `${D.label}|${metric}|${mask}|${ragged}|${nk}`; if (cache[key]) return cache[key];
   const s = sl(), ks = s.flatMap(x => [x.k_min, x.k_max]), fn = METRICS[metric].f, T = lin(s[0].T, s[s.length - 1].T, nk > 96 ? 120 : 60);
   const kg = lin(pct(ks, .08), pct(ks, .92), nk);
-  if (ragged) {
-    const kRows = T.map(t => { if (!mask) return kg; const [lo, hi] = rangeAt(t); return lin(lo, hi, 96); });
-    return cache[key] = {kRows, T, z:T.map((t, i) => kRows[i].map(v => fn(v, t)))};
-  }
+  if (ragged) { const kRows = T.map(t => { if (!mask) return kg; const [lo, hi] = rangeAt(t); return lin(lo, hi, 96); });
+    return cache[key] = {kRows, T, z:T.map((t, i) => kRows[i].map(v => fn(v, t)))}; }
   const z = T.map(t => { const [lo, hi] = rangeAt(t); return kg.map(v => (mask && (v < lo || v > hi)) ? null : fn(v, t)); });
   return cache[key] = {k:kg, T, z};
 }
 
 /* ---------------- plotly helpers ---------------- */
 function L(o = {}) {
-  const ax = (x = {}) => ({gridcolor:C.line, zerolinecolor:C.line, linecolor:C.line, tickcolor:C.line, ...x, title:x.title ? {text:x.title, standoff:8} : undefined});
-  return {margin:{l:56, r:16, t:10, b:46}, font:{family:FONT, size:12, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
-          hovermode:"closest", hoverlabel:{font:{family:FONT, size:12}}, legend:{orientation:"h", y:1.13, x:0, font:{size:11.5}}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
+  const ax = (x = {}) => ({gridcolor:C.line, zerolinecolor:C.line2, linecolor:C.line, tickcolor:C.line, tickfont:{family:'"Fira Code",monospace', size:10.5, color:C.muted}, ...x, title:x.title ? {text:x.title, standoff:8, font:{size:11.5, color:C.muted}} : undefined});
+  return {margin:{l:56, r:14, t:10, b:46}, font:{family:FONT, size:12, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)", hovermode:"closest",
+    hoverlabel:{bgcolor:C.panel2, bordercolor:C.line2, font:{family:'"Fira Code",monospace', size:11.5, color:C.ink}}, legend:{orientation:"h", y:1.14, x:0, font:{size:11.5}}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
 }
-const camState = {}, modeState = {};
-function sceneL(zt, o = {}) {
-  const ax = t => ({title:{text:t}, gridcolor:C.line, zerolinecolor:C.line, showbackground:false, color:C.muted, linecolor:C.line, tickfont:{size:10.5}});
-  return {margin:{l:0, r:0, t:0, b:0}, font:{family:FONT, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", showlegend:false, uirevision:D.label + (o.rev || ""),
-          scene:{xaxis:ax("ln(K/F)"), yaxis:ax("days to expiry"), zaxis:ax(zt), aspectratio:{x:1.25, y:1.25, z:.75}, camera:camState[o.id] || CAMS.def, dragmode:modeState[o.id] || "turntable"}};
-}
-const CAMS = {def:{eye:{x:1.32, y:-1.38, z:.78}}, top:{eye:{x:0, y:-0.01, z:2.6}}, smile:{eye:{x:0, y:-2.6, z:.45}}, term:{eye:{x:2.6, y:0, z:.45}}};
 const bound = new Set();
 function on(id, evt, fn) { const k = id + evt; if (bound.has(k)) return; const el = document.getElementById(id); if (el && el.on) { el.on(evt, fn); bound.add(k); } }
 const draw = (id, tr, lay) => { Plotly.react(id, tr, lay, CFG); return document.getElementById(id); };
 const xf = s => xmode === "k" ? k => k : xmode === "m" ? k => Math.exp(k) : k => s.F * Math.exp(k);
 const XT = {k:"ln(K/F)", m:"moneyness K/F", K:"strike"};
-const pinColor = (j, on) => `hsl(${PIN_HUES[j % PIN_HUES.length]},65%,${C.surface === "#111a2e" ? 62 : 46}%)`;
-const sel = () => sl()[idx];
+const pinColor = j => `hsl(${[262, 190, 330, 150, 20][j % 5]},${C.dark ? 80 : 62}%,${C.dark ? 68 : 42}%)`;
+const markerTrace = (xs, ys) => ({x:xs, y:ys, mode:"markers", marker:{size:14, color:"rgba(0,0,0,0)", line:{color:C.gold, width:2.2}}, hoverinfo:"skip", showlegend:false});
 
 /* ---------------- overview ---------------- */
 function renderKpis() {
   const s = sl(), meanR = s.reduce((a, x) => a + x.rmse, 0) / s.length, bad = s.filter(x => !x.butterfly_ok || !x.calendar_ok).length;
-  let last = ["ATM IV range", `${f(Math.min(...s.map(atmVol)), 1)}–${f(Math.max(...s.map(atmVol)), 1)}%`];
-  if (s[0].truth) { let mx = 0; s.forEach(x => x.truth.k.forEach((k, i) => { mx = Math.max(mx, Math.abs(ivOf(x, k, x.T) - x.truth.iv[i]) * 100); })); last = ["max error vs true surface", `${f(mx, 2)} pts`]; }
+  let last = ["ATM IV range", `${f(Math.min(...s.map(atmVol)), 1)}-${f(Math.max(...s.map(atmVol)), 1)}%`, "across tenors"];
+  if (s[0].truth) { let mx = 0; s.forEach(x => x.truth.k.forEach((k, i) => { mx = Math.max(mx, Math.abs(ivOf(x, k, x.T) - x.truth.iv[i]) * 100); })); last = ["Max error vs truth", `${f(mx, 2)} pts`, "known surface"]; }
   $("#kpis").innerHTML = [
-    [`${D.n_kept.toLocaleString()} / ${D.n_raw.toLocaleString()}`, "contracts kept after cleaning"],
-    [s.length, `expiries (${f(s[0].days, 0)}–${f(s[s.length - 1].days, 0)} days)`],
-    [`${f(meanR, 2)} pts`, "mean fit error on quotes"],
-    [bad === 0 ? "0" : bad, "slices with arbitrage"],
-    [last[1], last[0]],
-    [D.spot.toLocaleString(undefined, {maximumFractionDigits:2}), `spot, as of ${D.asof.slice(0, 10)}`],
-  ].map(([b, t]) => `<div class="kpi"><b>${b}</b><span>${t}</span></div>`).join("");
+    ["Contracts", `${D.n_kept.toLocaleString()}`, `of ${D.n_raw.toLocaleString()} kept`, ""], ["Tenors", s.length, `${f(s[0].days, 0)} to ${f(s[s.length - 1].days, 0)} days`, ""],
+    ["Fit error", `${f(meanR, 2)} pts`, "mean RMSE on quotes", ""], ["Arbitrage", bad === 0 ? "none" : bad, bad === 0 ? "butterfly and calendar clean" : "slices flagged", bad === 0 ? "good" : ""],
+    [last[0], last[1], last[2], ""], ["Spot", D.spot.toLocaleString(undefined, {maximumFractionDigits:2}), `as of ${D.asof.slice(0, 10)}`, ""],
+  ].map(([l, b, e, c]) => `<div class="k"><span class="l">${l}</span><b class="${c}">${b}</b><em>${e}</em></div>`).join("");
 }
 function renderSmile() {
   const s = sel(), q = s.q, X = xf(s);
   const pts = (type, name, col, flag) => { const ix = q.type.map((t, i) => t === type ? i : -1).filter(i => i >= 0);
-    return {x:ix.map(i => X(q.k[i])), y:ix.map(i => q.iv[i] * 100), customdata:ix, name, meta:"mkt", mode:"markers", visible:flag, marker:{size:6, color:col, opacity:.85, line:{width:0}},
-      text:ix.map(i => `${type === "P" ? "Put" : "Call"} K=${q.K[i]}<br>bid ${q.bid[i]} / ask ${q.ask[i]}`), hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"}; };
-  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 240), atm = atmVol(s), tr = [pts("P", "market puts", C.put, show.puts), pts("C", "market calls", C.call, show.calls)];
-  if (s.truth) tr.push({x:s.truth.k.map(X), y:s.truth.iv.map(v => v * 100), name:"true surface", mode:"lines", visible:show.truth, line:{color:C.muted, width:7}, opacity:.4, hoverinfo:"skip"});
-  tr.push({x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:"SVI fit", mode:"lines", visible:show.fit, line:{color:C.accent, width:2.6}, hovertemplate:"fit %{y:.2f}%<extra></extra>"});
-  tr.push({x:[X(kk[0]), X(kk[kk.length - 1])], y:[atm, atm], name:"flat vol (Black-Scholes)", mode:"lines", visible:show.flat, line:{color:C.warn, dash:"dash", width:1.5}, hoverinfo:"skip"});
-  if (detail != null) tr.push({x:[X(q.k[detail])], y:[q.iv[detail] * 100], mode:"markers", name:"selected", marker:{size:14, color:"rgba(0,0,0,0)", line:{color:C.ink, width:2}}, hoverinfo:"skip", showlegend:false});
+    return {x:ix.map(i => X(q.k[i])), y:ix.map(i => q.iv[i] * 100), customdata:ix, name, meta:"mkt", mode:"markers", visible:flag, marker:{size:6.5, color:col, opacity:.9, line:{width:0}},
+      text:ix.map(i => `${type === "P" ? "Put" : "Call"} ${q.K[i]}<br>bid ${q.bid[i]} / ask ${q.ask[i]}`), hovertemplate:"%{text}<br>IV %{y:.2f}%<extra></extra>"}; };
+  const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 240), atm = atmVol(s), tr = [pts("P", "puts", C.put, show.puts), pts("C", "calls", C.call, show.calls)];
+  if (s.truth) tr.push({x:s.truth.k.map(X), y:s.truth.iv.map(v => v * 100), name:"truth", mode:"lines", visible:show.truth, line:{color:C.muted, width:8}, opacity:.35, hoverinfo:"skip"});
+  tr.push({x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:"SVI fit", mode:"lines", visible:show.fit, line:{color:C.fit, width:2.6}, hovertemplate:"fit %{y:.2f}%<extra></extra>"});
+  tr.push({x:[X(kk[0]), X(kk[kk.length - 1])], y:[atm, atm], name:"flat vol (Black-Scholes)", mode:"lines", visible:show.flat, line:{color:C.neg, dash:"dash", width:1.4}, hoverinfo:"skip"});
+  if (detail != null) tr.push({x:[X(q.k[detail])], y:[q.iv[detail] * 100], mode:"markers", marker:{size:15, color:"rgba(0,0,0,0)", line:{color:C.ink, width:2}}, hoverinfo:"skip", showlegend:false});
   draw("smile", tr, L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}}));
   on("smile", "plotly_click", ev => { const p = ev.points[0]; if (p.data.meta === "mkt") { detail = p.customdata; renderDetail(); renderSmile(); } });
 }
@@ -362,24 +381,16 @@ function renderDetail() {
   const s = sel(), q = s.q, i = detail;
   if (i == null || i >= q.k.length) { $("#detail").className = "empty"; $("#detail").innerHTML = "Click a point on the smile."; return; }
   const fit = ivOf(s, q.k[i], s.T) * 100, mkt = q.iv[i] * 100, res = fit - mkt;
-  $("#detail").className = ""; $("#detail").innerHTML = `<dl class="dl">
-    <dt>Contract</dt><dd>${q.type[i] === "P" ? "Put" : "Call"} ${q.K[i]} &middot; ${s.expiry}</dd>
+  $("#detail").className = ""; $("#detail").innerHTML = `<dl class="dl"><dt>Contract</dt><dd>${q.type[i] === "P" ? "Put" : "Call"} ${q.K[i]}</dd><dt>Tenor</dt><dd>${s.expiry}</dd>
     <dt>Bid / ask</dt><dd>${q.bid[i]} / ${q.ask[i]}</dd><dt>ln(K/F) &middot; K/F</dt><dd>${f(q.k[i], 3)} &middot; ${f(Math.exp(q.k[i]), 3)}</dd>
-    <dt>Market IV</dt><dd>${f(mkt, 2)}%</dd><dt>SVI fit IV</dt><dd>${f(fit, 2)}%</dd>
-    <dt>Residual</dt><dd><span class="chip ${Math.abs(res) < 0.5 ? "ok" : "bad"}">${res >= 0 ? "+" : ""}${f(res, 2)} pts</span></dd></dl>`;
+    <dt>Market IV</dt><dd>${f(mkt, 2)}%</dd><dt>SVI fit IV</dt><dd>${f(fit, 2)}%</dd><dt>Residual</dt><dd><span class="chipx ${Math.abs(res) < 0.5 ? "ok" : "bad"}">${res >= 0 ? "+" : ""}${f(res, 2)} pts</span></dd></dl>`;
 }
 function renderResid() {
   const s = sel(), q = s.q, X = xf(s), y = q.k.map((k, i) => (ivOf(s, k, s.T) - q.iv[i]) * 100);
-  draw("resid", [{x:q.k.map(X), y, mode:"markers", marker:{size:4.5, color:q.type.map(t => t === "P" ? C.put : C.call), opacity:.85}, hovertemplate:"%{x:.3f}<br>%{y:+.3f} pts<extra></extra>"}],
-    L({margin:{l:56, r:16, t:4, b:40}, xaxis:{title:XT[xmode]}, yaxis:{title:"vol pts"}, showlegend:false,
-       shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1}}]}));
+  draw("resid", [{x:q.k.map(X), y, mode:"markers", marker:{size:5, color:q.type.map(t => t === "P" ? C.put : C.call), opacity:.9}, hovertemplate:"%{x:.3f}<br>%{y:+.3f} pts<extra></extra>"}],
+    L({margin:{l:56, r:14, t:4, b:40}, xaxis:{title:XT[xmode]}, yaxis:{title:"vol pts"}, showlegend:false, shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1}}]}));
 }
-function termData(m) {
-  const s = sl();
-  return {atm:{y:s.map(atmVol), t:"ATM IV (%)", c:C.accent}, skew:{y:s.map(atmSkew), t:"dIV / d ln(K/F)", c:C.warn},
-          w:{y:s.map(x => S.w(x, 0)), t:"total variance", c:C.call}, F:{y:s.map(x => x.F), t:"forward", c:C.put}}[m];
-}
-function markerTrace(xs, ys) { return {x:xs, y:ys, mode:"markers", marker:{size:13, color:"rgba(0,0,0,0)", line:{color:C.ink, width:2}}, hoverinfo:"skip"}; }
+function termData(m) { const s = sl(); return {atm:{y:s.map(atmVol), t:"ATM IV (%)", c:C.gold}, skew:{y:s.map(atmSkew), t:"dIV / d ln(K/F)", c:C.violet}, w:{y:s.map(x => S.w(x, 0)), t:"total variance", c:C.call}, F:{y:s.map(x => x.F), t:"forward", c:C.put}}[m]; }
 function renderTerm() {
   const m = $("#termmetric").value, d = termData(m), days = sl().map(x => x.days);
   draw("term", [{x:days, y:d.y, mode:"lines+markers", line:{color:d.c, width:2.4}, marker:{size:7}, text:sl().map(x => x.expiry), hovertemplate:"%{text}<br>%{x:.0f}d: %{y:.4f}<extra></extra>"}, markerTrace([sel().days], [d.y[idx]])],
@@ -387,189 +398,139 @@ function renderTerm() {
   on("term", "plotly_click", ev => { if (ev.points[0].curveNumber === 0) setIdx(ev.points[0].pointIndex); });
 }
 function renderPinSmile() {
-  if (!pins.length) { draw("pinsmile", [], L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}, annotations:[{text:"No pinned expiries yet", showarrow:false, font:{color:C.muted, size:13}, xref:"paper", yref:"paper", x:.5, y:.5}]})); return; }
-  const tr = pins.map((i, j) => { const s = sl()[i], X = xf(s), kk = lin(s.k_min, s.k_max, 160);
-    return {x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:`${f(s.days, 0)}d`, mode:"lines", line:{color:pinColor(j), width:2.4}, hovertemplate:`${f(s.days, 0)}d: %{y:.2f}%<extra></extra>`}; });
-  draw("pinsmile", tr, L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}}));
+  if (!pins.length) { draw("pinsmile", [], L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}, annotations:[{text:"No pinned tenors yet", showarrow:false, font:{color:C.muted, size:13}, xref:"paper", yref:"paper", x:.5, y:.5}]})); return; }
+  draw("pinsmile", pins.map((i, j) => { const s = sl()[i], X = xf(s), kk = lin(s.k_min, s.k_max, 160);
+    return {x:kk.map(X), y:kk.map(k => ivOf(s, k, s.T) * 100), name:`${f(s.days, 0)}d`, mode:"lines", line:{color:pinColor(j), width:2.4}, hovertemplate:`${f(s.days, 0)}d: %{y:.2f}%<extra></extra>`}; }),
+    L({xaxis:{title:XT[xmode]}, yaxis:{title:"implied vol (%)"}}));
 }
 function renderOverview() { renderKpis(); renderSmile(); renderDetail(); renderResid(); renderTerm(); renderPinSmile(); $("#truthlbl").style.display = sl()[0].truth ? "" : "none"; }
 
-/* ---------------- 3D surface ---------------- */
-function surfaceTraces(metric, o) {
-  const {kRows, T, z} = gridFor(metric, o.mask, true), div = isDiv(metric), fn = METRICS[metric].f;
-  const abs = z.flat().map(Math.abs).sort((a, b) => a - b), m = div ? abs[Math.floor(.97 * (abs.length - 1))] : 0;
-  const tr = [{type:"surface", x:kRows, y:T.map((t, i) => kRows[i].map(() => t * 365)), z, colorscale:div ? DIV : SEQ, ...(div ? {cmin:-m, cmax:m} : {}), opacity:.96, lighting:{ambient:.78, diffuse:.6, specular:.1, roughness:.7},
-    colorbar:{title:{text:METRICS[metric].name.replace(/ \(%\)/, " %"), side:"right"}, len:.62, thickness:12, tickfont:{size:10.5, color:C.muted}, outlinewidth:0},
-    contours:o.contours ? {z:{show:true, usecolormap:true, project:{z:true}, width:2}} : {},
-    hovertemplate:`ln(K/F) %{x:.3f}<br>%{y:.0f} days<br>${METRICS[metric].name} %{z:.3f}<extra></extra>`}];
-  const s = sl();
-  if (o.pts) { const p = {x:[], y:[], z:[]}; s.forEach(x => x.q.k.forEach((kv, i) => { p.x.push(kv); p.y.push(x.days); p.z.push(x.q.iv[i] * 100); }));
-    tr.push({type:"scatter3d", mode:"markers", ...p, marker:{size:1.7, color:C.ink, opacity:.7}, hoverinfo:"skip"}); } else tr.push({type:"scatter3d", x:[], y:[], z:[]});
-  const cur = sel(), kk = lin(cur.k_min, cur.k_max, 90);
-  tr.push(o.rib ? {type:"scatter3d", mode:"lines", x:kk, y:kk.map(() => cur.days), z:kk.map(v => fn(v, cur.T)), line:{color:C.warn, width:8}, hoverinfo:"skip"} : {type:"scatter3d", x:[], y:[], z:[]});
-  if (o.atm) { const dd = lin(s[0].days, s[s.length - 1].days, 80); tr.push({type:"scatter3d", mode:"lines", x:dd.map(() => 0), y:dd, z:dd.map(d => fn(0, d / 365)), line:{color:C.ink, width:5}, hoverinfo:"skip"}); }
-  else tr.push({type:"scatter3d", x:[], y:[], z:[]});
-  return tr;
+/* ---------------- 3D stages ---------------- */
+const stages = {}, stageKey = {};
+async function stage(id) {
+  if (stages[id]) return stages[id];
+  if (!(await window.s3dReady)) { $("#" + id).innerHTML = '<div class="s3d-fail">The 3D engine could not load. Reload the page, or check that WebGL is enabled.</div>'; return null; }
+  const st = new Surface3D($("#" + id), {onPick:h => pick(id, h), tip:h => tipHtml(id, h)});
+  if (st.failed) return null; stages[id] = st; window.__stages = stages; st.setAutoSpin(!reducedMotion); st.setTheme(stageTheme()); return st;
 }
-function renderSurfaceTab() {
-  const metric = $("#smetric").value, o = {mask:$("#s-mask").checked, pts:$("#s-pts").checked && metric === "iv", rib:$("#s-rib").checked, contours:false, atm:false};
-  const tr = surfaceTraces(metric, o), q = queryResult();
-  tr.push(q ? {type:"scatter3d", mode:"markers", x:[q.k], y:[q.days], z:[METRICS[metric].f(q.k, q.T)], marker:{size:7, symbol:"diamond", color:C.warn, line:{color:"#fff", width:1.5}}, hoverinfo:"skip"} : {type:"scatter3d", x:[], y:[], z:[]});
-  const gd = draw("surf", tr, sceneL(METRICS[metric].name, {rev:"surf", id:"surf"}));
-  track3d("surf");
-  on("surf", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (!p) return;
-    query.days = Math.round(p.y); query.K = Math.round(forward(p.y / 365) * Math.exp(p.x)); setIdx(nearest(p.y), true); });
+const stageTheme = () => ({ink:C.ink, muted:C.muted, line:C.dark ? "#26324c" : "#cfc8b2", accent:C.gold, violet:C.violet});
+const metricOf = id => id === "surf" ? $("#smetric").value : $("#kmetric").value;
+function pick(id, h) { const T = h.days / 365; query.days = Math.round(h.days); query.K = Math.round(forward(T) * Math.exp(h.k)); setIdx(nearest(h.days)); if (id === "surf") renderQuery(); }
+function tipHtml(id, h) { const m = METRICS[metricOf(id)], F = forward(h.days / 365);
+  return `<small>${m.name}</small><b>${m.tip(h.v)}</b><span>ln(K/F) ${f(h.k, 3)}</span><span>${f(h.days, 0)} days &middot; K ${Math.round(F * Math.exp(h.k))}</span>`; }
+function setStageSurface(st, id, metric, mask) {
+  const key = `${D.label}|${metric}|${mask}|${C.dark}`; if (stageKey[id] === key) return; stageKey[id] = key;
+  const g = gridFor(metric, mask, true), m = METRICS[metric];
+  st.setSurface({kRows:g.kRows, days:g.T.map(t => t * 365), z:g.z, scale:isDiv(metric) ? "div" : "plasma", title:m.name, fmt:m.fmt, xTitle:"ln(K/F)", yTitle:"days to expiry", contours:true, clip:isDiv(metric) ? .97 : 1});
+}
+function overlays(metric, o) {
+  const fn = METRICS[metric].f, s = sl(), out = {curves:[]};
+  if (o.pts) { const p = {k:[], days:[], v:[]}; s.forEach(x => x.q.k.forEach((kv, i) => { p.k.push(kv); p.days.push(x.days); p.v.push(x.q.iv[i] * 100); })); out.points = p; }
+  const curve = (x, color, radius) => { const kk = lin(x.k_min, x.k_max, 100); return {k:kk, days:kk.map(() => x.days), v:kk.map(v => fn(v, x.T)), color, radius}; };
+  if (o.rib) { pins.forEach((i, j) => { if (i !== idx) out.curves.push(curve(sl()[i], pinColor(j), .006)); }); out.curves.push(curve(sel(), C.gold, .011)); }
+  if (o.atm) { const TT = lin(s[0].T, s[s.length - 1].T, 90); out.curves.push({k:TT.map(() => 0), days:TT.map(t => t * 365), v:TT.map(t => fn(0, t)), color:C.ink, radius:.006}); }
+  if (o.marker) { const q = queryResult(); if (q) out.marker = {k:q.k, days:q.days, v:fn(q.k, q.T), color:C.violet}; }
+  return out;
+}
+async function renderSurfaceTab() {
+  const st = await stage("surf"); if (!st) return; const metric = $("#smetric").value;
+  try { setStageSurface(st, "surf", metric, $("#s-mask").checked);
+    st.setOverlays(overlays(metric, {pts:$("#s-pts").checked && metric === "iv", rib:$("#s-rib").checked, marker:true})); } catch (e) { console.error("3D overlay failed", e); }
   renderQuery();
 }
+async function renderSkewTab() {
+  const st = await stage("skew3d"); if (!st) return; const metric = $("#kmetric").value;
+  try { setStageSurface(st, "skew3d", metric, true); st.setOverlays(overlays(metric, {rib:$("#k-rib").checked, atm:$("#k-atm").checked})); } catch (e) { console.error("3D overlay failed", e); }
+  const list = [idx, ...pins.filter(i => i !== idx)];
+  draw("skewslice", list.map((i, j) => { const x = sl()[i], X = xf(x), kk = lin(x.k_min, x.k_max, 160);
+    return {x:kk.map(X), y:kk.map(k => S.dw(x, k) / (2 * Math.sqrt(Math.max(S.w(x, k), 1e-12) * x.T))), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:j === 0 ? C.gold : pinColor(pins.indexOf(i)), width:j === 0 ? 2.8 : 1.8}, hovertemplate:`${f(x.days, 0)}d: %{y:.3f}<extra></extra>`}; }),
+    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:XT[xmode]}, yaxis:{title:"dIV / dk"}, showlegend:list.length > 1, shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1, dash:"dot"}}]}));
+  const days = sl().map(x => x.days), y = sl().map(atmSkew);
+  draw("skewterm", [{x:days, y, mode:"lines+markers", line:{color:C.violet, width:2.4}, marker:{size:7}, hovertemplate:"%{x:.0f}d: %{y:.3f}<extra></extra>"}, markerTrace([sel().days], [y[idx]])],
+    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:"days to expiry"}, yaxis:{title:"ATM dIV / dk"}, showlegend:false}));
+  on("skewterm", "plotly_click", ev => { if (ev.points[0].curveNumber === 0) setIdx(ev.points[0].pointIndex); });
+}
+function mountHuds() {
+  $$(".hudslot").forEach(slot => { const id = slot.dataset.for, host = $("#" + id); host.append($("#hud-tpl").content.cloneNode(true));
+    const hud = host.querySelector(".hud"), spinBtn = hud.querySelector("[data-act=spin]"); spinBtn.setAttribute("aria-pressed", !reducedMotion);
+    hud.addEventListener("pointerdown", e => e.stopPropagation()); hud.addEventListener("wheel", e => e.stopPropagation(), {passive:true}); slot.remove();
+    hud.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", async () => { const st = await stage(id); if (!st) return; st.setMode(b.dataset.mode); hud.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x === b)); }));
+    hud.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", async () => (await stage(id))?.view(b.dataset.view)));
+    spinBtn.addEventListener("click", async () => { const st = await stage(id); if (!st) return; st.setAutoSpin(!st.autoSpin); spinBtn.setAttribute("aria-pressed", st.autoSpin); });
+    hud.querySelector("[data-act=zin]").addEventListener("click", async () => (await stage(id))?.zoomBy(.8));
+    hud.querySelector("[data-act=zout]").addEventListener("click", async () => (await stage(id))?.zoomBy(1.25));
+    hud.querySelector("[data-act=reset]").addEventListener("click", async () => (await stage(id))?.resetView()); });
+}
+
+/* ---------------- query tool ---------------- */
 function queryResult() {
   const T = query.days / 365, s = sl(); if (!(T > 0) || !(query.K > 0)) return null;
-  const Tc = Math.min(Math.max(T, s[0].T), s[s.length - 1].T), F = forward(Tc), k = Math.log(query.K / F), w = wDer(k, Tc)[0];
-  if (!(w > 0)) return null;
+  const Tc = Math.min(Math.max(T, s[0].T), s[s.length - 1].T), F = forward(Tc), k = Math.log(query.K / F), w = wDer(k, Tc)[0]; if (!(w > 0)) return null;
   const iv = Math.sqrt(w / Tc), sd = iv * Math.sqrt(Tc), d1 = (Math.log(F / query.K) + 0.5 * sd * sd) / sd, d2 = d1 - sd, df = Math.exp(-D.rate * Tc), call = query.cp === "C";
-  const price = call ? df * (F * Ncdf(d1) - query.K * Ncdf(d2)) : df * (query.K * Ncdf(-d2) - F * Ncdf(-d1));
-  const [lo, hi] = rangeAt(Tc);
+  const price = call ? df * (F * Ncdf(d1) - query.K * Ncdf(d2)) : df * (query.K * Ncdf(-d2) - F * Ncdf(-d1)), [lo, hi] = rangeAt(Tc);
   return {k, T:Tc, days:Tc * 365, F, iv, price, delta:call ? df * Ncdf(d1) : df * (Ncdf(d1) - 1), vega:df * F * npdf(d1) * Math.sqrt(Tc) / 100, inside:k >= lo && k <= hi, clamped:Math.abs(Tc - T) > 1e-9};
 }
 function renderQuery() {
   const s = sl(); if (query.K == null) query.K = Math.round(D.spot);
   $("#q-days").min = Math.ceil(s[0].days); $("#q-days").max = Math.floor(s[s.length - 1].days);
   $("#q-days").value = query.days; $("#q-K").value = query.K; $("#q-cp").value = query.cp;
-  const q = queryResult(); if (!q) { $("#qout").innerHTML = '<dt>Result</dt><dd>enter a valid strike</dd>'; return; }
-  $("#qout").innerHTML = `<dt>Forward</dt><dd>${f(q.F, 2)}</dd><dt>ln(K/F)</dt><dd>${f(q.k, 4)}</dd><dt>Implied vol</dt><dd>${f(q.iv * 100, 2)}%</dd>
-    <dt>${query.cp === "C" ? "Call" : "Put"} price</dt><dd>${f(q.price, 2)}</dd><dt>Forward delta</dt><dd>${f(q.delta, 3)}</dd><dt>Vega (per vol pt)</dt><dd>${f(q.vega, 3)}</dd>
-    <dt>Region</dt><dd><span class="chip ${q.inside ? "ok" : "bad"}">${q.inside ? "observed" : "extrapolated"}</span></dd>${q.clamped ? "<dt>Note</dt><dd>maturity clamped to range</dd>" : ""}`;
-}
-
-
-/* ---------------- 3D mouse controls ---------------- */
-const MODES = [["turntable", "Rotate"], ["orbit", "Free spin"], ["pan", "Pan"], ["zoom", "Zoom"]];
-const VIEWS = [["def", "Default"], ["top", "Top"], ["smile", "Smile side"], ["term", "Term side"]];
-const spin = {};
-const gdOf = id => document.getElementById(id);
-const fullCam = c => ({eye:{...c.eye}, center:c.center ? {...c.center} : {x:0, y:0, z:0}, up:c.up ? {...c.up} : {x:0, y:0, z:1}});
-const camOf = id => { try { return fullCam(gdOf(id)._fullLayout.scene._scene.getCamera()); } catch (e) { return fullCam(camState[id] || CAMS.def); } };  // live camera; Plotly's layout copy lags interaction
-function track3d(id) {                    // keep camState in sync with whatever the user does, so re-renders keep their view
-  const gd = gdOf(id); gd.classList.add("plot3d");
-  on(id, "plotly_relayout", ev => {
-    if (ev["scene.camera"]) camState[id] = fullCam(ev["scene.camera"]);
-    else if (ev["scene.camera.eye"]) camState[id] = {...camOf(id), eye:{...ev["scene.camera.eye"]}}; });
-  if (gd._mouseWired) return; gd._mouseWired = true;
-  ["mousedown", "touchstart"].forEach(e => gd.addEventListener(e, () => stopSpin(id), {passive:true}));
-  gd.addEventListener("dblclick", () => { stopSpin(id); camState[id] = null; Plotly.relayout(gd, {"scene.camera":CAMS.def}); });
-  // Plotly's own wheel zoom is very coarse (one notch ~ 10x), so take it over with a smooth exponential zoom.
-  let pend = 0, busy = false, queued = false;
-  const apply = () => { queued = false; if (busy) { queued = true; return; }
-    const c = camOf(id), e = c.eye, d = Math.hypot(e.x, e.y, e.z), f = Math.exp(Math.max(-300, Math.min(300, pend)) * 0.0012); pend = 0;
-    const nd = Math.min(5, Math.max(0.5, d * f)), k = nd / d; busy = true;
-    setCam(id, {...c, eye:{x:e.x * k, y:e.y * k, z:e.z * k}}).then(() => { busy = false; if (pend) setTimeout(apply, 16); }); };
-  gd.addEventListener("wheel", ev => { ev.preventDefault(); ev.stopPropagation(); stopSpin(id);
-    pend += ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1); if (!queued) { queued = true; setTimeout(apply, 16); } }, {passive:false, capture:true});
-}
-function setCam(id, cam) { camState[id] = cam; return Plotly.relayout(gdOf(id), {"scene.camera":cam}); }
-function stopSpin(id) { if (spin[id]) { cancelAnimationFrame(spin[id].raf); spin[id] = null; } $$(`.t3d[data-plot=${id}] [data-act=spin]`).forEach(b => { b.setAttribute("aria-pressed", false); b.textContent = "Auto-spin"; }); }
-function startSpin(id) {
-  stopSpin(id); const gd = gdOf(id); let last = performance.now(), busy = false; spin[id] = {raf:0};
-  $$(`.t3d[data-plot=${id}] [data-act=spin]`).forEach(b => { b.setAttribute("aria-pressed", true); b.textContent = "Stop spin"; });
-  const step = t => { if (!spin[id]) return; const dt = Math.min(t - last, 60); last = t;
-    if (!busy) { const e = camOf(id).eye, a = dt * 0.00045; busy = true;
-      Plotly.relayout(gd, {"scene.camera.eye":{x:e.x * Math.cos(a) - e.y * Math.sin(a), y:e.x * Math.sin(a) + e.y * Math.cos(a), z:e.z}}).then(() => { busy = false; }); }
-    if (spin[id]) spin[id].raf = requestAnimationFrame(step); };
-  spin[id].raf = requestAnimationFrame(step);
-}
-function zoom3d(id, factor) { const c = camOf(id), e = c.eye, d = Math.hypot(e.x, e.y, e.z), k = Math.min(5, Math.max(0.5, d * factor)) / d;
-  setCam(id, {...c, eye:{x:e.x * k, y:e.y * k, z:e.z * k}}); }
-function build3dToolbars() {
-  $$(".t3d").forEach(el => { const id = el.dataset.plot;
-    el.innerHTML = `<div class="grp"><span>Mouse</span><div class="seg2">${MODES.map(([m, l], i) => `<button data-mode="${m}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div></div>
-      <div class="grp"><span>View</span>${VIEWS.map(([v, l]) => `<button class="btn sm" data-view="${v}">${l}</button>`).join("")}</div>
-      <div class="grp"><button class="btn sm" data-act="spin" aria-pressed="false">Auto-spin</button><button class="btn sm" data-act="zin" title="Zoom in">Zoom +</button><button class="btn sm" data-act="zout" title="Zoom out">Zoom &minus;</button><button class="btn sm" data-act="reset">Reset</button></div>
-      <div class="hint">Drag to rotate &middot; scroll to zoom &middot; right-drag (or Pan mode) to move &middot; double-click to reset. Touch: one finger rotates, two fingers pinch-zoom.</div>`;
-    el.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => { modeState[id] = b.dataset.mode; stopSpin(id);
-      el.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x === b)); Plotly.relayout(gdOf(id), {"scene.dragmode":b.dataset.mode}); }));
-    el.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { stopSpin(id); setCam(id, CAMS[b.dataset.view]); }));
-    el.querySelector("[data-act=spin]").addEventListener("click", () => spin[id] ? stopSpin(id) : startSpin(id));
-    el.querySelector("[data-act=zin]").addEventListener("click", () => zoom3d(id, 0.8));
-    el.querySelector("[data-act=zout]").addEventListener("click", () => zoom3d(id, 1.25));
-    el.querySelector("[data-act=reset]").addEventListener("click", () => { stopSpin(id); camState[id] = null; Plotly.relayout(gdOf(id), {"scene.camera":CAMS.def}); });
-  });
-}
-
-/* ---------------- 3D skew ---------------- */
-function renderSkewTab() {
-  const metric = $("#kmetric").value, o = {mask:true, pts:false, rib:$("#k-rib").checked, contours:true, atm:$("#k-atm").checked};
-  draw("skew3d", surfaceTraces(metric, o), sceneL(METRICS[metric].name, {rev:"skew", id:"skew3d"}));
-  track3d("skew3d");
-  on("skew3d", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (p) setIdx(nearest(p.y), true); });
-  const s = sel(), cols = [C.accent, ...pins.map((_, j) => pinColor(j))], list = [idx, ...pins.filter(i => i !== idx)];
-  draw("skewslice", list.map((i, j) => { const x = sl()[i], X = xf(x), kk = lin(x.k_min, x.k_max, 160);
-    return {x:kk.map(X), y:kk.map(k => S.dw(x, k) / (2 * Math.sqrt(Math.max(S.w(x, k), 1e-12) * x.T))), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:j === 0 ? C.accent : pinColor(pins.indexOf(i)), width:j === 0 ? 2.8 : 1.8}, hovertemplate:`${f(x.days, 0)}d: %{y:.3f}<extra></extra>`}; }),
-    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:XT[xmode]}, yaxis:{title:"dIV / dk"}, showlegend:list.length > 1, shapes:[{type:"line", xref:"paper", x0:0, x1:1, y0:0, y1:0, line:{color:C.muted, width:1, dash:"dot"}}]}));
-  const days = sl().map(x => x.days), y = sl().map(atmSkew);
-  draw("skewterm", [{x:days, y, mode:"lines+markers", line:{color:C.warn, width:2.4}, marker:{size:7}, hovertemplate:"%{x:.0f}d: %{y:.3f}<extra></extra>"}, markerTrace([s.days], [y[idx]])],
-    L({margin:{l:54, r:14, t:6, b:42}, xaxis:{title:"days to expiry"}, yaxis:{title:"ATM dIV / dk"}, showlegend:false}));
-  on("skewterm", "plotly_click", ev => { if (ev.points[0].curveNumber === 0) setIdx(ev.points[0].pointIndex); });
+  const q = queryResult(); if (!q) { $("#qout").innerHTML = "<dt>Result</dt><dd>enter a valid strike</dd>"; return; }
+  $("#qout").innerHTML = `<dt>Forward</dt><dd>${f(q.F, 2)}</dd><dt>ln(K/F)</dt><dd>${f(q.k, 4)}</dd><dt>Implied vol</dt><dd style="color:var(--gold)">${f(q.iv * 100, 2)}%</dd>
+    <dt>${query.cp === "C" ? "Call" : "Put"} price</dt><dd>${f(q.price, 2)}</dd><dt>Forward delta</dt><dd>${f(q.delta, 3)}</dd><dt>Vega / vol pt</dt><dd>${f(q.vega, 3)}</dd>
+    <dt>Region</dt><dd><span class="chipx ${q.inside ? "ok" : "bad"}">${q.inside ? "observed" : "extrapolated"}</span></dd>${q.clamped ? "<dt>Note</dt><dd>maturity clamped</dd>" : ""}`;
 }
 
 /* ---------------- no-arbitrage ---------------- */
-function densityLine(p, s, color, name, w = 2.4) {
-  const kk = lin(s.k_min - 0.1, s.k_max + 0.1, 220), g = kk.map(k => S.g(p, k));
-  return {kk, min:Math.min(...g), tr:{x:kk, y:g, mode:"lines", name, line:{color, width:w}, hovertemplate:`${name}: g=%{y:.3f}<extra></extra>`}};
-}
-function densShapes(s, ztop) {
-  return [{type:"rect", xref:"x", yref:"paper", x0:s.k_min, x1:s.k_max, y0:0, y1:1, fillcolor:C.accent, opacity:.07, line:{width:0}, layer:"below"},
-          {type:"line", xref:"paper", x0:0, x1:1, yref:"y", y0:0, y1:0, line:{color:C.warn, width:1.2, dash:"dot"}}];
-}
+function densityLine(p, s, color, name, w = 2.4) { const kk = lin(s.k_min - 0.1, s.k_max + 0.1, 220), g = kk.map(k => S.g(p, k)); return {kk, min:Math.min(...g), tr:{x:kk, y:g, mode:"lines", name, line:{color, width:w}, hovertemplate:`${name}: g=%{y:.3f}<extra></extra>`}}; }
+const densShapes = s => [{type:"rect", xref:"x", yref:"paper", x0:s.k_min, x1:s.k_max, y0:0, y1:1, fillcolor:C.gold, opacity:.07, line:{width:0}, layer:"below"}, {type:"line", xref:"paper", x0:0, x1:1, yref:"y", y0:0, y1:0, line:{color:C.neg, width:1.2, dash:"dot"}}];
 function renderArbTab() {
-  const s = sel(), d = densityLine(s, s, C.accent, `${f(s.days, 0)}d`, 2.8);
-  draw("dens", [{...d.tr, fill:"tozeroy", fillcolor:"rgba(47,91,217,.10)"}, ...pins.filter(i => i !== idx).map((i, j) => densityLine(sl()[i], sl()[i], pinColor(pins.indexOf(i)), `${f(sl()[i].days, 0)}d`, 1.6).tr)],
+  const s = sel(), d = densityLine(s, s, C.gold, `${f(s.days, 0)}d`, 2.8);
+  draw("dens", [{...d.tr, fill:"tozeroy", fillcolor:C.dark ? "rgba(245,165,36,.12)" : "rgba(180,95,6,.10)"}, ...pins.filter(i => i !== idx).map(i => densityLine(sl()[i], sl()[i], pinColor(pins.indexOf(i)), `${f(sl()[i].days, 0)}d`, 1.6).tr)],
     L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:pins.length > 0, shapes:densShapes(s)}));
-  $("#gchip").innerHTML = d.min >= -1e-6 ? '<span class="chip ok">no arbitrage</span>' : '<span class="chip bad">negative density</span>';
+  $("#gchip").innerHTML = d.min >= -1e-6 ? '<span class="chipx ok">no arbitrage</span>' : '<span class="chipx bad">negative density</span>';
   const n = sl().length;
-  draw("cal", sl().map((x, i) => { const kk = lin(x.k_min, x.k_max, 80), on_ = i === idx;
-    return {x:kk, y:kk.map(k => S.w(x, k)), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:`hsl(${222 - 150 * i / Math.max(n - 1, 1)},62%,${on_ ? (C.surface === "#111a2e" ? 70 : 38) : (C.surface === "#111a2e" ? 58 : 55)}%)`, width:on_ ? 3.6 : 1.4}, opacity:on_ ? 1 : .8, hovertemplate:`${f(x.days, 0)}d: w=%{y:.4f}<extra></extra>`}; }),
+  draw("cal", sl().map((x, i) => { const kk = lin(x.k_min, x.k_max, 80), on_ = i === idx, h = 262 - 222 * i / Math.max(n - 1, 1);
+    return {x:kk, y:kk.map(k => S.w(x, k)), mode:"lines", name:`${f(x.days, 0)}d`, line:{color:`hsl(${h},${C.dark ? 75 : 60}%,${on_ ? (C.dark ? 74 : 38) : (C.dark ? 58 : 52)}%)`, width:on_ ? 3.6 : 1.4}, opacity:on_ ? 1 : .78, hovertemplate:`${f(x.days, 0)}d: w=%{y:.4f}<extra></extra>`}; }),
     L({xaxis:{title:"ln(K/F)"}, yaxis:{title:"total variance w"}, showlegend:false}));
   const g = gridFor("g", true, false, 320), gz = g.z.map(r => r.map(v => v == null ? null : Math.min(Math.max(v, -.5), 2)));
-  draw("gheat", [{type:"heatmap", x:g.k, y:g.T.map(t => t * 365), z:gz, colorscale:GHEAT, zmin:-.5, zmax:2, colorbar:{title:{text:"g(k)", side:"right"}, thickness:10, outlinewidth:0, tickfont:{size:10.5, color:C.muted}}, hovertemplate:"ln(K/F) %{x:.3f}<br>%{y:.0f}d<br>g %{z:.3f}<extra></extra>"}],
+  draw("gheat", [{type:"heatmap", x:g.k, y:g.T.map(t => t * 365), z:gz, colorscale:[[0, C.neg], [.2, C.dark ? "#141c30" : "#ece8da"], [.55, "#6d5bd6"], [1, "#f5a524"]], zmin:-.5, zmax:2, colorbar:{title:{text:"g(k)", side:"right"}, thickness:10, outlinewidth:0, tickfont:{size:10.5, color:C.muted}}, hovertemplate:"ln(K/F) %{x:.3f}<br>%{y:.0f}d<br>g %{z:.3f}<extra></extra>"}],
     L({margin:{l:56, r:12, t:6, b:46}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"days to expiry"}}));
   const mg = sl().map(x => Math.min(...lin(x.k_min - 0.1, x.k_max + 0.1, 120).map(k => S.g(x, k))));
-  draw("ming", [{type:"bar", x:sl().map(x => `${f(x.days, 0)}d`), y:mg, marker:{color:mg.map((v, i) => i === idx ? C.accent : (v >= -1e-6 ? C.call : C.warn)), opacity:.9}, hovertemplate:"%{x}: min g %{y:.4f}<extra></extra>"}],
-    L({margin:{l:56, r:12, t:6, b:46}, xaxis:{title:"expiry", type:"category"}, yaxis:{title:"min g(k)"}, showlegend:false}));
+  draw("ming", [{type:"bar", x:sl().map(x => `${f(x.days, 0)}d`), y:mg, marker:{color:mg.map((v, i) => i === idx ? C.gold : (v >= -1e-6 ? C.violet : C.neg)), opacity:.92}, hovertemplate:"%{x}: min g %{y:.4f}<extra></extra>"}],
+    L({margin:{l:56, r:12, t:6, b:46}, xaxis:{title:"tenor", type:"category"}, yaxis:{title:"min g(k)"}, showlegend:false}));
   on("ming", "plotly_click", ev => setIdx(ev.points[0].pointIndex));
 }
 
 /* ---------------- sandbox ---------------- */
 const SB = [["a", "a", 4], ["b", "b", 3], ["rho", "ρ", 3], ["m", "m", 3], ["sigma", "σ", 3]];
-function sbRange(key, s) { const wmax = Math.max(...s.q.iv.map(v => v * v * s.T));
-  return {a:[-wmax, wmax], b:[0, Math.max(3 * s.b, 0.05)], rho:[-0.99, 0.99], m:[s.k_min - 0.3, s.k_max + 0.3], sigma:[0.005, 1.0]}[key]; }
+function sbRange(key, s) { const wmax = Math.max(...s.q.iv.map(v => v * v * s.T)); return {a:[-wmax, wmax], b:[0, Math.max(3 * s.b, 0.05)], rho:[-0.99, 0.99], m:[s.k_min - 0.3, s.k_max + 0.3], sigma:[0.005, 1.0]}[key]; }
 function initSandbox() {
   const s = sel(); sandbox = {a:s.a, b:s.b, rho:s.rho, m:s.m, sigma:s.sigma};
-  $("#sbctl").innerHTML = SB.map(([k, sym]) => { const [lo, hi] = sbRange(k, s);
-    return `<div class="sl"><label for="sb-${k}"><i>${sym}</i></label><input id="sb-${k}" type="range" min="${lo}" max="${hi}" step="${(hi - lo) / 400}" value="${sandbox[k]}"><output id="sbo-${k}"></output></div>`; }).join("");
+  $("#sbctl").innerHTML = SB.map(([k, sym]) => { const [lo, hi] = sbRange(k, s); return `<div class="sl"><label for="sb-${k}"><i>${sym}</i></label><input id="sb-${k}" type="range" min="${lo}" max="${hi}" step="${(hi - lo) / 400}" value="${sandbox[k]}"><output id="sbo-${k}"></output></div>`; }).join("");
   SB.forEach(([k]) => $("#sb-" + k).addEventListener("input", e => { sandbox[k] = +e.target.value; renderSandbox(); }));
 }
 function renderSandbox() {
   const s = sel(), p = sandbox, q = s.q; SB.forEach(([k, , d]) => { $("#sbo-" + k).textContent = f(p[k], d); });
   const kk = lin(s.k_min - 0.03, s.k_max + 0.03, 200), rmse = Math.sqrt(q.k.reduce((a, k, i) => a + Math.pow(ivOf(p, k, s.T) - q.iv[i], 2), 0) / q.k.length) * 100;
-  const d = densityLine(p, s, C.accent, "sandbox"), okB = d.min >= -1e-6, prev = idx > 0 ? sl()[idx - 1] : null; let okC = true;
+  const d = densityLine(p, s, C.gold, "sandbox"), okB = d.min >= -1e-6, prev = idx > 0 ? sl()[idx - 1] : null; let okC = true;
   if (prev) { const lo = Math.max(prev.k_min, s.k_min) - 0.05, hi = Math.min(prev.k_max, s.k_max) + 0.05; if (lo < hi) okC = lin(lo, hi, 61).every(k => S.w(p, k) - S.w(prev, k) >= -1e-9); }
   const negW = Math.min(...kk.map(k => S.w(p, k))) < 0;
-  $("#sbstat").innerHTML = `<span class="chip ${okB ? "ok" : "bad"}">${okB ? "no butterfly arb" : "butterfly arbitrage"}</span> <span class="chip ${okC ? "ok" : "bad"}">${okC ? "calendar ok" : "calendar violated"}</span>${negW ? ' <span class="chip bad">negative variance</span>' : ""} <span style="color:var(--muted);font-size:13px">RMSE ${f(rmse, 2)} pts</span>`;
+  $("#sbstat").innerHTML = `<span class="chipx ${okB ? "ok" : "bad"}">${okB ? "no butterfly arb" : "butterfly arbitrage"}</span> <span class="chipx ${okC ? "ok" : "bad"}">${okC ? "calendar ok" : "calendar violated"}</span>${negW ? ' <span class="chipx bad">negative variance</span>' : ""} <span class="mono" style="color:var(--muted);font-size:12px">RMSE ${f(rmse, 2)} pts</span>`;
   draw("sbsmile", [{x:q.k, y:q.iv.map(v => v * 100), mode:"markers", marker:{size:4.5, color:C.muted, opacity:.7}, name:"market", hoverinfo:"skip"},
     {x:kk, y:kk.map(k => ivOf(s, k, s.T) * 100), mode:"lines", line:{color:C.muted, dash:"dot", width:1.6}, name:"fitted", hoverinfo:"skip"},
-    {x:kk, y:kk.map(k => ivOf(p, k, s.T) * 100), mode:"lines", line:{color:okB ? C.accent : C.warn, width:2.6}, name:"sandbox", hoverinfo:"skip"}],
+    {x:kk, y:kk.map(k => ivOf(p, k, s.T) * 100), mode:"lines", line:{color:okB ? C.gold : C.neg, width:2.6}, name:"sandbox", hoverinfo:"skip"}],
     L({margin:{l:56, r:14, t:6, b:42}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"IV (%)"}, legend:{orientation:"h", y:1.16}}));
-  draw("sbdens", [{...d.tr, line:{color:okB ? C.accent : C.warn, width:2.4}, fill:"tozeroy", fillcolor:okB ? "rgba(47,91,217,.10)" : "rgba(224,71,91,.16)"}],
-    L({margin:{l:56, r:14, t:6, b:42}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:false, shapes:densShapes(s)}));
+  draw("sbdens", [{...d.tr, line:{color:okB ? C.gold : C.neg, width:2.4}, fill:"tozeroy", fillcolor:okB ? "rgba(245,165,36,.12)" : "rgba(251,113,133,.18)"}], L({margin:{l:56, r:14, t:6, b:42}, xaxis:{title:"ln(K/F)"}, yaxis:{title:"g(k)"}, showlegend:false, shapes:densShapes(s)}));
 }
 
 /* ---------------- data ---------------- */
 function renderDataTab() {
   const r = D.filters.filter(x => x.reason !== "ok" && x.rows > 0).sort((a, b) => a.rows - b.rows);
-  draw("filt", [{type:"bar", orientation:"h", y:r.map(x => x.reason.replace(/_/g, " ")), x:r.map(x => x.rows), marker:{color:C.accent, opacity:.85}, text:r.map(x => x.rows.toLocaleString()), textposition:"outside", cliponaxis:false, hoverinfo:"skip"}],
-    L({margin:{l:100, r:44, t:6, b:42}, xaxis:{title:"rows"}, showlegend:false}));
-  $("#tbl").innerHTML = `<table><thead><tr><th>Expiry</th><th>Days</th><th>Quotes</th><th>RMSE</th><th>Max err</th><th>min g</th><th>Butterfly</th><th>Calendar</th></tr></thead><tbody>` +
+  draw("filt", [{type:"bar", orientation:"h", y:r.map(x => x.reason.replace(/_/g, " ")), x:r.map(x => x.rows), marker:{color:C.gold, opacity:.88}, text:r.map(x => x.rows.toLocaleString()), textposition:"outside", textfont:{family:'"Fira Code",monospace', size:11, color:C.ink2}, cliponaxis:false, hoverinfo:"skip"}],
+    L({margin:{l:100, r:50, t:6, b:42}, xaxis:{title:"rows"}, showlegend:false}));
+  $("#tbl").innerHTML = `<table><thead><tr><th>Tenor</th><th>Days</th><th>Quotes</th><th>RMSE</th><th>Max err</th><th>min g</th><th>Butterfly</th><th>Calendar</th></tr></thead><tbody>` +
     sl().map((x, i) => `<tr data-i="${i}" class="${i === idx ? "sel" : ""}"><td>${x.expiry}</td><td>${f(x.days, 0)}</td><td>${x.n}</td><td>${f(x.rmse, 3)}</td><td>${f(x.max_err, 2)}</td><td>${f(x.min_g, 3)}</td>` +
-      `<td><span class="chip ${x.butterfly_ok ? "ok" : "bad"}">${x.butterfly_ok ? "ok" : "arb"}</span></td><td><span class="chip ${x.calendar_ok ? "ok" : "bad"}">${x.calendar_ok ? "ok" : "arb"}</span></td></tr>`).join("") + "</tbody></table>";
+      `<td><span class="chipx ${x.butterfly_ok ? "ok" : "bad"}">${x.butterfly_ok ? "ok" : "arb"}</span></td><td><span class="chipx ${x.calendar_ok ? "ok" : "bad"}">${x.calendar_ok ? "ok" : "arb"}</span></td></tr>`).join("") + "</tbody></table>";
   $$("#tbl tr[data-i]").forEach(t => t.addEventListener("click", () => setIdx(+t.dataset.i)));
   const c = D.cross; $("#crosscard").style.display = c ? "" : "none";
   if (c) $("#crosstbl").innerHTML = `<table><thead><tr><th>Calibrator</th><th>Mean RMSE (pts)</th><th>Worst err (pts)</th><th>Slices w/ butterfly arb</th><th>Calendar violations</th><th>Gap vs mine (pts)</th></tr></thead><tbody>` +
@@ -578,17 +539,21 @@ function renderDataTab() {
 
 /* ---------------- shell ---------------- */
 const TABS = {overview:renderOverview, surface:renderSurfaceTab, skew:renderSkewTab, arb:renderArbTab, sandbox:() => { initSandbox(); renderSandbox(); }, data:renderDataTab};
-function refresh() { readTheme(); const s = sel();
-  $("#elabel").innerHTML = `${dateStr(s.expiry)} &middot; ${f(s.days, 0)} days<small>F ${f(s.F, 2)} &middot; ${s.n} quotes &middot; RMSE ${f(s.rmse, 2)} pts</small>`;
-  $("#eslider").value = idx; $("#pin").textContent = pins.includes(idx) ? "Unpin" : "Pin to compare";
-  $("#pins").innerHTML = pins.map((i, j) => `<span class="pin"><i style="background:${pinColor(j)}"></i>${f(sl()[i].days, 0)}d<button data-unpin="${i}" aria-label="Remove pin">&times;</button></span>`).join("");
-  $$("[data-unpin]").forEach(b => b.addEventListener("click", () => { pins = pins.filter(i => i !== +b.dataset.unpin); refresh(); }));
-  TABS[active](); history.replaceState(null, "", `#${D.label}/${idx}/${active}`); }
-function setIdx(i, keepTab) { idx = Math.max(0, Math.min(sl().length - 1, i)); detail = null; refresh(); }
-function setTab(t) { Object.keys(spin).forEach(stopSpin); active = t; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + t)); refresh(); }
-function play(on_) { clearInterval(timer); timer = null; $("#play").innerHTML = on_ ? "&#10074;&#10074; Pause" : "&#9654; Play";
-  if (on_) timer = setInterval(() => setIdx((idx + 1) % sl().length), 1100); }
+function renderTenor() {
+  const s = sel();
+  $("#cur-main").textContent = `${f(s.days, 0)}d  ${shortDate(s.expiry)}`; $("#cur-sub").textContent = `F ${f(s.F, 2)}  ·  ${s.n} quotes  ·  RMSE ${f(s.rmse, 2)}`;
+  $("#chips").innerHTML = sl().map((x, i) => { const pj = pins.indexOf(i); return `<button class="chip${pj >= 0 ? " pinned" : ""}" data-i="${i}" aria-pressed="${i === idx}" ${pj >= 0 ? `style="--pc:${pinColor(pj)}"` : ""}><b>${f(x.days, 0)}d</b><i>${shortDate(x.expiry)}</i></button>`; }).join("");
+  $$("#chips .chip").forEach(b => b.addEventListener("click", () => setIdx(+b.dataset.i)));
+  const on_ = $("#chips .chip[aria-pressed=true]"); if (on_) on_.scrollIntoView({block:"nearest", inline:"center"});
+  $("#pin").textContent = pins.includes(idx) ? "Unpin" : "Pin"; $("#pin").setAttribute("aria-pressed", pins.includes(idx));
+}
+function refresh() { readTheme(); renderTenor(); TABS[active](); history.replaceState(null, "", `#${D.label}/${idx}/${active}`); }
+function setIdx(i) { idx = Math.max(0, Math.min(sl().length - 1, i)); detail = null; refresh(); }
+function setTab(t) { active = t; $$(".nv").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + t)); refresh(); }
+function play(on_) { clearInterval(timer); timer = null; $("#play").textContent = on_ ? "Pause" : "Play"; if (on_) timer = setInterval(() => setIdx((idx + 1) % sl().length), 1300); }
 function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type:"text/csv"})); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+function themeIcon() { const dark = document.documentElement.dataset.theme !== "light";
+  $("#theme-ico").innerHTML = dark ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>' : '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>'; }
 
 async function load(label, keep) {
   play(false); $$(".seg button").forEach(b => b.setAttribute("aria-pressed", b.id === "ds-" + label));
@@ -596,16 +561,16 @@ async function load(label, keep) {
   catch (e) { $("#loading").style.display = ""; $("#loading").innerHTML = `Could not load <code>data/${label}.json</code>. Browsers block <code>fetch</code> on <code>file://</code>; serve <code>docs/</code> over HTTP (<code>python -m http.server</code>) or open the GitHub Pages URL.`; return; }
   D = cache["d" + label]; pins = []; detail = null; query.K = Math.round(D.spot); query.days = Math.round(D.slices[Math.floor(D.slices.length / 2)].days);
   idx = Math.min(keep ?? Math.floor(D.slices.length / 2), D.slices.length - 1);
-  $("#loading").style.display = "none"; if (!$("#tab-" + active).classList.contains("on")) $("#tab-" + active).classList.add("on");
-  const e = $("#eslider"); e.max = D.slices.length - 1; $("#subtitle").textContent = D.title; refresh();
+  $("#loading").style.display = "none"; $("#tab-" + active).classList.add("on");
+  $("#sym").textContent = label === "SPY" ? "SPY" : "SYN"; $("#px").textContent = D.spot.toLocaleString(undefined, {maximumFractionDigits:2}); $("#meta").textContent = `${D.title} · ${D.asof.slice(0, 10)}`;
+  refresh();
 }
 
 /* wiring */
-build3dToolbars();
 $("#smetric").innerHTML = Object.entries(METRICS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
+mountHuds();
 $$(".seg button").forEach(b => b.addEventListener("click", () => load(b.id.slice(3))));
-$$(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
-$("#eslider").addEventListener("input", e => setIdx(+e.target.value));
+$$(".nv").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
 $("#prev").addEventListener("click", () => setIdx(idx - 1)); $("#next").addEventListener("click", () => setIdx(idx + 1));
 $("#play").addEventListener("click", () => play(!timer));
 $("#pin").addEventListener("click", () => { pins = pins.includes(idx) ? pins.filter(i => i !== idx) : [...pins, idx].slice(-5); refresh(); });
@@ -621,15 +586,15 @@ $("#dl-grid").addEventListener("click", () => { const m = $("#smetric").value, g
   g.T.forEach((t, i) => g.kRows[i].forEach((k, j) => rows.push(`${k.toFixed(4)},${(t * 365).toFixed(2)},${g.z[i][j].toFixed(5)}`))); download(`${D.label}_${m}_grid.csv`, rows.join("\n")); });
 $("#dl-par").addEventListener("click", () => download(`${D.label}_svi_params.csv`, "expiry,days,a,b,rho,m,sigma,rmse_pts,min_g\n" + sl().map(x => [x.expiry, x.days, x.a, x.b, x.rho, x.m, x.sigma, x.rmse, x.min_g].join(",")).join("\n")));
 $("#dl-q").addEventListener("click", () => { const s = sel(), q = s.q; download(`${D.label}_${s.expiry}_quotes.csv`, "type,strike,bid,ask,ln_k,iv\n" + q.k.map((k, i) => [q.type[i], q.K[i], q.bid[i], q.ask[i], k, q.iv[i]].join(",")).join("\n")); });
-$("#theme").addEventListener("click", () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = t;
-  try { localStorage.setItem("ivd-theme", t); } catch (e) {} $("#theme").textContent = t === "dark" ? "Light mode" : "Dark mode"; if (D) { Object.keys(cache).filter(k => !k.startsWith("d")).forEach(k => delete cache[k]); refresh(); } });
-document.addEventListener("keydown", e => { if (!D || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range") return;
+$("#theme").addEventListener("click", () => { const t = document.documentElement.dataset.theme === "light" ? "dark" : "light"; document.documentElement.dataset.theme = t;
+  try { localStorage.setItem("ivd-theme", t); } catch (e) {} themeIcon(); if (D) { readTheme(); Object.values(stages).forEach(s => s.setTheme(stageTheme())); Object.keys(stageKey).forEach(k => delete stageKey[k]); refresh(); } });
+document.addEventListener("keydown", e => { if (!D || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName) && e.target.type !== "range" || e.target.closest && e.target.closest(".stage")) return;
   if (e.key === "ArrowRight") { setIdx(idx + 1); e.preventDefault(); } else if (e.key === "ArrowLeft") { setIdx(idx - 1); e.preventDefault(); } else if (e.key === " ") { play(!timer); e.preventDefault(); } });
-let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => $$(".tab.on .plot").forEach(p => p.data && Plotly.Plots.resize(p)), 150); });
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => $$(".tab.on [id]").forEach(p => p.data && Plotly.Plots.resize(p)), 150); });
 
-$("#theme").textContent = document.documentElement.dataset.theme === "dark" ? "Light mode" : "Dark mode";
+themeIcon(); readTheme();
 const h = location.hash.slice(1).split("/");
-if (["overview", "surface", "skew", "arb", "sandbox", "data"].includes(h[2])) { active = h[2]; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === active)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + active)); }
+if (["overview", "surface", "skew", "arb", "sandbox", "data"].includes(h[2])) { active = h[2]; $$(".nv").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === active)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + active)); }
 load(["SPY", "SYNTHETIC"].includes(h[0]) ? h[0] : "SPY", h[1] !== undefined && !isNaN(+h[1]) ? +h[1] : undefined);
 </script>
 </body></html>

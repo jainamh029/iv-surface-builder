@@ -11,15 +11,15 @@ puts at the front of the curve price in ~60%. The red dashed line above is the f
 
 **Live demo:** https://jainamh029.github.io/iv-surface-builder/ &nbsp;|&nbsp; **[Interactive dashboard](https://jainamh029.github.io/iv-surface-builder/dashboard.html)**
 
-The dashboard is a static page (no server, no build step) with light and dark themes:
-* **Linked expiry control**: slider, step buttons, autoplay and arrow keys drive every chart; pin up to five expiries to overlay and compare.
-* **Smile explorer**: click any quote for contract detail; switch the x-axis between ln(K/F), K/F and strike.
-* **Mouse-controlled 3D**: drag to rotate, scroll to zoom (smooth, clamped), right-drag or Pan mode to move, double-click to reset, plus Free spin, Zoom +/-, view presets and an Auto-spin toggle. Your view is kept when you change expiry or tab.
-* **3D surface** of IV, total variance, local skew or density, with a *query tool*: click the surface or type a strike and maturity to get the implied vol, Black-76 price, delta and vega.
-* **3D skew surface**: local skew d(IV)/dk over strike and maturity on a diverging scale centred at zero, with projected contours and an ATM ridge.
-* **No-arbitrage views**: density g(k), calendar curves, a g(k) heatmap and minimum g per expiry.
-* **SVI sandbox**: drag the five parameters and watch butterfly and calendar arbitrage appear.
-* **Data and audit**: filter breakdown, per-expiry fit table, svi-py comparison, CSV export of the surface grid, parameters and quotes.
+The dashboard is a static page (no server, no build step) with a dark "Obsidian & Gold" theme and a light "Paper & Ink" theme.
+* **Free-spin 3D** (Three.js): drag to rotate in any direction with momentum, scroll to zoom smoothly, Shift-drag to pan, double-click to reset.
+  Also a Turntable mode that keeps the floor level, view presets, keyboard control (arrows, +/-, 0) and an idle auto-spin that you can pause
+  (off by default when the OS asks for reduced motion). Hover reads any point; click queries it.
+* **Surface and skew stages**: IV, total variance, local skew, variance slope or density, drawn with lighting, back-wall grids, a floor heat-shadow with contours and a colour legend.
+* **Tenor bar**: click an expiry chip, step with the arrows, autoplay, or pin up to five tenors to overlay and compare.
+* **Query tool**: click the surface or type a strike and maturity to get the implied vol, Black-76 price, delta and vega.
+* **No-arbitrage views**: density g(k), calendar curves, a g(k) heatmap and minimum g per tenor; an **SVI sandbox** where you drag the parameters and watch arbitrage appear.
+* **Data and audit**: filter breakdown, per-tenor fit table, svi-py comparison, CSV export of the surface grid, parameters and quotes.
 
 All surface maths is re-implemented client-side in JavaScript from the exported SVI parameters; the query tool was checked against the Python library to the printed precision.
 
@@ -141,6 +141,10 @@ data/           raw chains saved by live runs (git-ignored: Yahoo data is not re
   The repo ships the fitted results and cleaned implied vols for illustration, not the raw downloaded chain.
 * SVI `rho`/`m` are weakly identified when one wing has no quotes (the fit is still good in-sample).
 * No extrapolation past observed strikes (masked) or past the last expiry (`ValueError`).
+
+## Third-party assets (shipped in `docs/assets`)
+Three.js r160 (MIT), Plotly.js (MIT), Fira Sans and Fira Code (SIL OFL 1.1). Licenses are alongside the files. Three.js and the fonts were
+installed from npm at pinned versions and checked against the registry's SHA-512 integrity hashes.
 
 ## References
 * Gatheral, *A parsimonious arbitrage-free implied volatility parameterization* (SVI) and Gatheral & Jacquier,
