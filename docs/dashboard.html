@@ -54,6 +54,10 @@ button,select,input{font:inherit;color:inherit}
 .pin i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .pin button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:2px 5px}
 
+.t3d{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:6px 0 8px;font-size:12.5px;color:var(--muted)}
+.t3d .grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.t3d .hint{flex-basis:100%;font-size:12px;opacity:.9}
+.btn.sm[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.plot3d{cursor:grab}.plot3d:active{cursor:grabbing}
 /* tabs */
 .tabs{background:var(--surface);border-bottom:1px solid var(--line)}
 .tabs .in{display:flex;gap:4px;overflow-x:auto}
@@ -159,10 +163,8 @@ code{background:var(--surface2);border:1px solid var(--line);padding:1px 6px;bor
   <div class="g c31">
     <div class="card"><div class="hd"><div><h2>Implied volatility surface</h2><p class="sub" style="margin-bottom:0">Drag to rotate, scroll to zoom. Click the surface to query that point. Masked where there are no quotes.</p></div>
       <div class="tools"><select id="smetric" aria-label="Surface metric"></select>
-        <label><input type="checkbox" id="s-pts" checked> quotes</label><label><input type="checkbox" id="s-rib" checked> expiry</label><label><input type="checkbox" id="s-mask" checked> mask extrapolation</label></div></div>
-      <div class="tools" style="margin:2px 0 4px"><span>View:</span>
-        <button class="btn sm" data-cam="def">Default</button><button class="btn sm" data-cam="top">Top</button><button class="btn sm" data-cam="smile">Smile side</button><button class="btn sm" data-cam="term">Term side</button>
-        <button class="btn sm" id="dl-grid" style="margin-left:auto">Export grid CSV</button></div>
+        <label><input type="checkbox" id="s-pts" checked> quotes</label><label><input type="checkbox" id="s-rib" checked> expiry</label><label><input type="checkbox" id="s-mask" checked> mask extrapolation</label><button class="btn sm" id="dl-grid">Export grid CSV</button></div></div>
+      <div class="t3d" data-plot="surf"></div>
       <div id="surf" class="plot" style="height:600px"></div></div>
     <div class="stack">
       <div class="card"><h2>Query the surface</h2><p class="sub">Strike and maturity in, volatility and Black-76 price out.</p>
@@ -181,8 +183,7 @@ code{background:var(--surface2);border:1px solid var(--line);padding:1px 6px;bor
       <p class="sub" style="margin-bottom:0">Local skew &part;IV/&part;k over strike and maturity. Blue = steep put skew, white = the smile's vertex, red = call-side upturn. Contours are projected on the floor.</p></div>
       <div class="tools"><select id="kmetric" aria-label="Skew metric"><option value="skew">Local skew &part;IV/&part;k</option><option value="dwk">Variance slope &part;w/&part;k</option></select>
         <label><input type="checkbox" id="k-rib" checked> expiry</label><label><input type="checkbox" id="k-atm" checked> ATM ridge</label></div></div>
-      <div class="tools" style="margin:2px 0 4px"><span>View:</span>
-        <button class="btn sm" data-kcam="def">Default</button><button class="btn sm" data-kcam="top">Top</button><button class="btn sm" data-kcam="smile">Smile side</button><button class="btn sm" data-kcam="term">Term side</button></div>
+      <div class="t3d" data-plot="skew3d"></div>
       <div id="skew3d" class="plot" style="height:620px"></div></div>
     <div class="stack">
       <div class="card"><h2>Skew across strikes</h2><p class="sub">Selected expiry (pinned expiries overlaid).</p><div id="skewslice" class="plot" style="height:240px"></div></div>
@@ -315,12 +316,13 @@ function L(o = {}) {
   return {margin:{l:56, r:16, t:10, b:46}, font:{family:FONT, size:12, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", plot_bgcolor:"rgba(0,0,0,0)",
           hovermode:"closest", hoverlabel:{font:{family:FONT, size:12}}, legend:{orientation:"h", y:1.13, x:0, font:{size:11.5}}, ...o, xaxis:ax(o.xaxis), yaxis:ax(o.yaxis)};
 }
+const camState = {}, modeState = {};
 function sceneL(zt, o = {}) {
   const ax = t => ({title:{text:t}, gridcolor:C.line, zerolinecolor:C.line, showbackground:false, color:C.muted, linecolor:C.line, tickfont:{size:10.5}});
   return {margin:{l:0, r:0, t:0, b:0}, font:{family:FONT, color:C.ink2}, paper_bgcolor:"rgba(0,0,0,0)", showlegend:false, uirevision:D.label + (o.rev || ""),
-          scene:{xaxis:ax("ln(K/F)"), yaxis:ax("days to expiry"), zaxis:ax(zt), aspectratio:{x:1.25, y:1.25, z:.75}, camera:CAMS.def, dragmode:"turntable"}};
+          scene:{xaxis:ax("ln(K/F)"), yaxis:ax("days to expiry"), zaxis:ax(zt), aspectratio:{x:1.25, y:1.25, z:.75}, camera:camState[o.id] || CAMS.def, dragmode:modeState[o.id] || "turntable"}};
 }
-const CAMS = {def:{eye:{x:1.45, y:-1.5, z:.85}}, top:{eye:{x:0, y:-0.01, z:2.6}}, smile:{eye:{x:0, y:-2.6, z:.45}}, term:{eye:{x:2.6, y:0, z:.45}}};
+const CAMS = {def:{eye:{x:1.32, y:-1.38, z:.78}}, top:{eye:{x:0, y:-0.01, z:2.6}}, smile:{eye:{x:0, y:-2.6, z:.45}}, term:{eye:{x:2.6, y:0, z:.45}}};
 const bound = new Set();
 function on(id, evt, fn) { const k = id + evt; if (bound.has(k)) return; const el = document.getElementById(id); if (el && el.on) { el.on(evt, fn); bound.add(k); } }
 const draw = (id, tr, lay) => { Plotly.react(id, tr, lay, CFG); return document.getElementById(id); };
@@ -413,7 +415,8 @@ function renderSurfaceTab() {
   const metric = $("#smetric").value, o = {mask:$("#s-mask").checked, pts:$("#s-pts").checked && metric === "iv", rib:$("#s-rib").checked, contours:false, atm:false};
   const tr = surfaceTraces(metric, o), q = queryResult();
   tr.push(q ? {type:"scatter3d", mode:"markers", x:[q.k], y:[q.days], z:[METRICS[metric].f(q.k, q.T)], marker:{size:7, symbol:"diamond", color:C.warn, line:{color:"#fff", width:1.5}}, hoverinfo:"skip"} : {type:"scatter3d", x:[], y:[], z:[]});
-  const gd = draw("surf", tr, sceneL(METRICS[metric].name, {rev:"surf"}));
+  const gd = draw("surf", tr, sceneL(METRICS[metric].name, {rev:"surf", id:"surf"}));
+  track3d("surf");
   on("surf", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (!p) return;
     query.days = Math.round(p.y); query.K = Math.round(forward(p.y / 365) * Math.exp(p.x)); setIdx(nearest(p.y), true); });
   renderQuery();
@@ -437,10 +440,65 @@ function renderQuery() {
     <dt>Region</dt><dd><span class="chip ${q.inside ? "ok" : "bad"}">${q.inside ? "observed" : "extrapolated"}</span></dd>${q.clamped ? "<dt>Note</dt><dd>maturity clamped to range</dd>" : ""}`;
 }
 
+
+/* ---------------- 3D mouse controls ---------------- */
+const MODES = [["turntable", "Rotate"], ["orbit", "Free spin"], ["pan", "Pan"], ["zoom", "Zoom"]];
+const VIEWS = [["def", "Default"], ["top", "Top"], ["smile", "Smile side"], ["term", "Term side"]];
+const spin = {};
+const gdOf = id => document.getElementById(id);
+const fullCam = c => ({eye:{...c.eye}, center:c.center ? {...c.center} : {x:0, y:0, z:0}, up:c.up ? {...c.up} : {x:0, y:0, z:1}});
+const camOf = id => { try { return fullCam(gdOf(id)._fullLayout.scene._scene.getCamera()); } catch (e) { return fullCam(camState[id] || CAMS.def); } };  // live camera; Plotly's layout copy lags interaction
+function track3d(id) {                    // keep camState in sync with whatever the user does, so re-renders keep their view
+  const gd = gdOf(id); gd.classList.add("plot3d");
+  on(id, "plotly_relayout", ev => {
+    if (ev["scene.camera"]) camState[id] = fullCam(ev["scene.camera"]);
+    else if (ev["scene.camera.eye"]) camState[id] = {...camOf(id), eye:{...ev["scene.camera.eye"]}}; });
+  if (gd._mouseWired) return; gd._mouseWired = true;
+  ["mousedown", "touchstart"].forEach(e => gd.addEventListener(e, () => stopSpin(id), {passive:true}));
+  gd.addEventListener("dblclick", () => { stopSpin(id); camState[id] = null; Plotly.relayout(gd, {"scene.camera":CAMS.def}); });
+  // Plotly's own wheel zoom is very coarse (one notch ~ 10x), so take it over with a smooth exponential zoom.
+  let pend = 0, busy = false, queued = false;
+  const apply = () => { queued = false; if (busy) { queued = true; return; }
+    const c = camOf(id), e = c.eye, d = Math.hypot(e.x, e.y, e.z), f = Math.exp(Math.max(-300, Math.min(300, pend)) * 0.0012); pend = 0;
+    const nd = Math.min(5, Math.max(0.5, d * f)), k = nd / d; busy = true;
+    setCam(id, {...c, eye:{x:e.x * k, y:e.y * k, z:e.z * k}}).then(() => { busy = false; if (pend) setTimeout(apply, 16); }); };
+  gd.addEventListener("wheel", ev => { ev.preventDefault(); ev.stopPropagation(); stopSpin(id);
+    pend += ev.deltaY * (ev.deltaMode === 1 ? 16 : ev.deltaMode === 2 ? 400 : 1); if (!queued) { queued = true; setTimeout(apply, 16); } }, {passive:false, capture:true});
+}
+function setCam(id, cam) { camState[id] = cam; return Plotly.relayout(gdOf(id), {"scene.camera":cam}); }
+function stopSpin(id) { if (spin[id]) { cancelAnimationFrame(spin[id].raf); spin[id] = null; } $$(`.t3d[data-plot=${id}] [data-act=spin]`).forEach(b => { b.setAttribute("aria-pressed", false); b.textContent = "Auto-spin"; }); }
+function startSpin(id) {
+  stopSpin(id); const gd = gdOf(id); let last = performance.now(), busy = false; spin[id] = {raf:0};
+  $$(`.t3d[data-plot=${id}] [data-act=spin]`).forEach(b => { b.setAttribute("aria-pressed", true); b.textContent = "Stop spin"; });
+  const step = t => { if (!spin[id]) return; const dt = Math.min(t - last, 60); last = t;
+    if (!busy) { const e = camOf(id).eye, a = dt * 0.00045; busy = true;
+      Plotly.relayout(gd, {"scene.camera.eye":{x:e.x * Math.cos(a) - e.y * Math.sin(a), y:e.x * Math.sin(a) + e.y * Math.cos(a), z:e.z}}).then(() => { busy = false; }); }
+    if (spin[id]) spin[id].raf = requestAnimationFrame(step); };
+  spin[id].raf = requestAnimationFrame(step);
+}
+function zoom3d(id, factor) { const c = camOf(id), e = c.eye, d = Math.hypot(e.x, e.y, e.z), k = Math.min(5, Math.max(0.5, d * factor)) / d;
+  setCam(id, {...c, eye:{x:e.x * k, y:e.y * k, z:e.z * k}}); }
+function build3dToolbars() {
+  $$(".t3d").forEach(el => { const id = el.dataset.plot;
+    el.innerHTML = `<div class="grp"><span>Mouse</span><div class="seg2">${MODES.map(([m, l], i) => `<button data-mode="${m}" aria-pressed="${i === 0}">${l}</button>`).join("")}</div></div>
+      <div class="grp"><span>View</span>${VIEWS.map(([v, l]) => `<button class="btn sm" data-view="${v}">${l}</button>`).join("")}</div>
+      <div class="grp"><button class="btn sm" data-act="spin" aria-pressed="false">Auto-spin</button><button class="btn sm" data-act="zin" title="Zoom in">Zoom +</button><button class="btn sm" data-act="zout" title="Zoom out">Zoom &minus;</button><button class="btn sm" data-act="reset">Reset</button></div>
+      <div class="hint">Drag to rotate &middot; scroll to zoom &middot; right-drag (or Pan mode) to move &middot; double-click to reset. Touch: one finger rotates, two fingers pinch-zoom.</div>`;
+    el.querySelectorAll("[data-mode]").forEach(b => b.addEventListener("click", () => { modeState[id] = b.dataset.mode; stopSpin(id);
+      el.querySelectorAll("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x === b)); Plotly.relayout(gdOf(id), {"scene.dragmode":b.dataset.mode}); }));
+    el.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { stopSpin(id); setCam(id, CAMS[b.dataset.view]); }));
+    el.querySelector("[data-act=spin]").addEventListener("click", () => spin[id] ? stopSpin(id) : startSpin(id));
+    el.querySelector("[data-act=zin]").addEventListener("click", () => zoom3d(id, 0.8));
+    el.querySelector("[data-act=zout]").addEventListener("click", () => zoom3d(id, 1.25));
+    el.querySelector("[data-act=reset]").addEventListener("click", () => { stopSpin(id); camState[id] = null; Plotly.relayout(gdOf(id), {"scene.camera":CAMS.def}); });
+  });
+}
+
 /* ---------------- 3D skew ---------------- */
 function renderSkewTab() {
   const metric = $("#kmetric").value, o = {mask:true, pts:false, rib:$("#k-rib").checked, contours:true, atm:$("#k-atm").checked};
-  draw("skew3d", surfaceTraces(metric, o), sceneL(METRICS[metric].name, {rev:"skew"}));
+  draw("skew3d", surfaceTraces(metric, o), sceneL(METRICS[metric].name, {rev:"skew", id:"skew3d"}));
+  track3d("skew3d");
   on("skew3d", "plotly_click", ev => { const p = ev.points.find(x => x.curveNumber === 0); if (p) setIdx(nearest(p.y), true); });
   const s = sel(), cols = [C.accent, ...pins.map((_, j) => pinColor(j))], list = [idx, ...pins.filter(i => i !== idx)];
   draw("skewslice", list.map((i, j) => { const x = sl()[i], X = xf(x), kk = lin(x.k_min, x.k_max, 160);
@@ -527,7 +585,7 @@ function refresh() { readTheme(); const s = sel();
   $$("[data-unpin]").forEach(b => b.addEventListener("click", () => { pins = pins.filter(i => i !== +b.dataset.unpin); refresh(); }));
   TABS[active](); history.replaceState(null, "", `#${D.label}/${idx}/${active}`); }
 function setIdx(i, keepTab) { idx = Math.max(0, Math.min(sl().length - 1, i)); detail = null; refresh(); }
-function setTab(t) { active = t; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + t)); refresh(); }
+function setTab(t) { Object.keys(spin).forEach(stopSpin); active = t; $$(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === t)); $$(".tab").forEach(e => e.classList.toggle("on", e.id === "tab-" + t)); refresh(); }
 function play(on_) { clearInterval(timer); timer = null; $("#play").innerHTML = on_ ? "&#10074;&#10074; Pause" : "&#9654; Play";
   if (on_) timer = setInterval(() => setIdx((idx + 1) % sl().length), 1100); }
 function download(name, text) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type:"text/csv"})); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
@@ -543,6 +601,7 @@ async function load(label, keep) {
 }
 
 /* wiring */
+build3dToolbars();
 $("#smetric").innerHTML = Object.entries(METRICS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
 $$(".seg button").forEach(b => b.addEventListener("click", () => load(b.id.slice(3))));
 $$(".tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
@@ -555,8 +614,6 @@ $$("#smtools input").forEach(i => i.addEventListener("change", () => { show[i.da
 $("#termmetric").addEventListener("change", renderTerm);
 ["smetric", "s-pts", "s-rib", "s-mask"].forEach(id => $("#" + id).addEventListener("change", renderSurfaceTab));
 ["kmetric", "k-rib", "k-atm"].forEach(id => $("#" + id).addEventListener("change", renderSkewTab));
-$$("[data-cam]").forEach(b => b.addEventListener("click", () => Plotly.relayout("surf", {"scene.camera":CAMS[b.dataset.cam]})));
-$$("[data-kcam]").forEach(b => b.addEventListener("click", () => Plotly.relayout("skew3d", {"scene.camera":CAMS[b.dataset.kcam]})));
 ["q-days", "q-K", "q-cp"].forEach(id => $("#" + id).addEventListener("input", () => { query.days = +$("#q-days").value; query.K = +$("#q-K").value; query.cp = $("#q-cp").value; renderSurfaceTab(); }));
 $("#q-sel").addEventListener("click", () => { query.days = Math.round(sel().days); renderSurfaceTab(); });
 $("#sbreset").addEventListener("click", () => { initSandbox(); renderSandbox(); });

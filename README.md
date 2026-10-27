@@ -14,6 +14,7 @@ puts at the front of the curve price in ~60%. The red dashed line above is the f
 The dashboard is a static page (no server, no build step) with light and dark themes:
 * **Linked expiry control**: slider, step buttons, autoplay and arrow keys drive every chart; pin up to five expiries to overlay and compare.
 * **Smile explorer**: click any quote for contract detail; switch the x-axis between ln(K/F), K/F and strike.
+* **Mouse-controlled 3D**: drag to rotate, scroll to zoom (smooth, clamped), right-drag or Pan mode to move, double-click to reset, plus Free spin, Zoom +/-, view presets and an Auto-spin toggle. Your view is kept when you change expiry or tab.
 * **3D surface** of IV, total variance, local skew or density, with a *query tool*: click the surface or type a strike and maturity to get the implied vol, Black-76 price, delta and vega.
 * **3D skew surface**: local skew d(IV)/dk over strike and maturity on a diverging scale centred at zero, with projected contours and an ATM ridge.
 * **No-arbitrage views**: density g(k), calendar curves, a g(k) heatmap and minimum g per expiry.
